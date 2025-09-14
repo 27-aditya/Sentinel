@@ -16,9 +16,9 @@ os.makedirs("keyframes", exist_ok=True)
 saved_ids = set()
 
 # Open video or stream
-cap = cv2.VideoCapture("/mnt/c/Stuff/CCTV Footage/KAKKODI_MUKKU_JN_ch7_20250811100000_20250811103017.mp4")   # Replace with 0 for webcam, or RTSP/HTTP stream
+cap = cv2.VideoCapture("video.mp4")   # Replace with 0 for webcam, or RTSP/HTTP stream
 
-frame_num = 0
+frame_num = 0 
 while True:
     ret, frame = cap.read()
     if not ret:
