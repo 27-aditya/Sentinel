@@ -113,4 +113,8 @@ while True:
         break
 
 cap.release()
-cv2.destroyAllWindows()
+if hasattr(cv2, "destroyAllWindows"):
+    try:
+        cv2.destroyAllWindows()
+    except:
+        pass
