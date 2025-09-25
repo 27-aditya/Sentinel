@@ -37,5 +37,6 @@ MANIFEST
 # Project-specific ignores
 video.mp4
 *.pt
+*.mp4
 keyframes/
 keyframes_triggered/
