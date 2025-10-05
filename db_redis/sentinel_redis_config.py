@@ -37,7 +37,7 @@ MAX_RETRIES = 3
 
 # Worker Types
 WORKER_TYPES = {
-    "ocr": ["car", "bike", "bus", "auto"],      # OCR works on all vehicles
+    "ocr": ["car", "bus", "motorcycle", "truck"],      # OCR works on all vehicles
     "color": ["car"],                            # Color only for cars
     "logo": ["car"]                              # Logo/model only for cars
 }

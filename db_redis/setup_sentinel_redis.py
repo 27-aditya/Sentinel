@@ -52,6 +52,29 @@ def setup_streams_and_groups():
         print(f"Failed to setup streams: {e}")
         return False
 
+def cleanup_streams():
+    """Clean up test data and optionally remove all streams."""
+    print("Cleaning up test messages and streams...")
+
+    try:
+        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
+
+        # Delete only test messages
+        for stream in STREAMS.values():
+            try:
+                info = r.xinfo_stream(stream)
+                if info["length"] > 0:
+                    r.delete(stream)
+                    print(f"  Deleted stream '{stream}' and its data.")
+            except redis.ResponseError:
+                print(f"  Stream '{stream}' does not exist, skipping.")
+        
+        print("Cleanup complete.")
+        return True
+    except Exception as e:
+        print(f"Cleanup failed: {e}")
+        return False
+
 def test_streams():
     """Test Redis streams functionality"""
     print("Testing Redis streams...")
@@ -137,6 +160,8 @@ def main():
     if not test_streams():
         print("Stream tests failed")
         sys.exit(1)
+
+    # cleanup_streams()
     
     print("\n" + "="*60)
     print("Redis setup for Sentinel completed successfully!")

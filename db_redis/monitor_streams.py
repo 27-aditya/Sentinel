@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 import redis
 import time
-from sentinel_redis_config import *
+from db_redis.sentinel_redis_config import *
 
 def monitor_streams():
     """Monitor all Redis streams"""
