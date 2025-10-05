@@ -20,6 +20,15 @@ class ResultAggregator:
         self.pending_jobs = defaultdict(dict)  # job_id -> {worker: result}
         self.r = get_redis_connection()
         
+    def parse_color_result(self, result):
+        """Parse color result format: 'color_name|#hex_code'"""
+        if '|' in result:
+            color_name, hex_code = result.split('|', 1)
+            return color_name.strip(), hex_code.strip()
+        else:
+            # Fallback for old format
+            return result.strip(), "#000000"
+        
     def save_to_database(self, job_data):
         """Save completed job to database"""
         conn = get_db_connection()
@@ -27,14 +36,15 @@ class ResultAggregator:
         
         cursor.execute("""
             INSERT INTO vehicles (vehicle_id, vehicle_type, full_image_path, plate_image_path, 
-                                colour, vehicle_number, model, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                color, color_hex, vehicle_number, model, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             job_data.get("vehicle_id"),
             job_data.get("vehicle_type"),
             job_data.get("frame_path"),
             job_data.get("plate_path"),
-            job_data.get("colour", ""),
+            job_data.get("color", ""),
+            job_data.get("color_hex", "#000000"),
             job_data.get("vehicle_number", ""),
             job_data.get("model", ""),
             "completed"
@@ -88,19 +98,24 @@ class ResultAggregator:
                             results = self.pending_jobs[job_id]["results"]
                             stored_vehicle_id = self.pending_jobs[job_id]["vehicle_id"]
                             
+                            # Parse color result (color_name|hex_code format)
+                            color_result = results.get("color", "unknown|#000000")
+                            color_name, color_hex = self.parse_color_result(color_result)
+                            
                             job_data = {
                                 "vehicle_id": stored_vehicle_id,  # Use the UUID format
                                 "vehicle_type": vehicle_type,
                                 "frame_path": f"keyframes/{job_id}.jpg",
                                 "plate_path": f"processed_keyframes/{job_id}_plate.jpg",
-                                "colour": results.get("colour", ""),
+                                "color": color_name,
+                                "color_hex": color_hex,
                                 "vehicle_number": results.get("ocr", ""),
                                 "model": results.get("logo", "")
                             }
                             
                             # Save to database
                             self.save_to_database(job_data)
-                            print(f"Saved {job_id} to database with vehicle_id: {stored_vehicle_id}")
+                            print(f"Saved {job_id} to database: {color_name} ({color_hex}) - vehicle_id: {stored_vehicle_id}")
                             
                             # Send ACK
                             self.r.xadd(VEHICLE_ACK_STREAM, {
@@ -128,7 +143,7 @@ async def get_vehicles():
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT vehicle_id, vehicle_type, colour, vehicle_number, model, timestamp
+        SELECT vehicle_id, vehicle_type, color, color_hex, vehicle_number, model, timestamp
         FROM vehicles 
         ORDER BY timestamp DESC LIMIT 100
     """)
@@ -138,10 +153,11 @@ async def get_vehicles():
         vehicles.append({
             "vehicle_id": row[0],
             "vehicle_type": row[1], 
-            "colour": row[2],
-            "vehicle_number": row[3],
-            "model": row[4],
-            "timestamp": row[5]
+            "color": row[2],
+            "color_hex": row[3],
+            "vehicle_number": row[4],
+            "model": row[5],
+            "timestamp": row[6]
         })
     
     cursor.close()
@@ -169,11 +185,12 @@ async def get_vehicle(vehicle_id: str):
         "vehicle_type": row[2],
         "full_image_path": row[3],
         "plate_image_path": row[4],
-        "colour": row[5],
-        "vehicle_number": row[6],
-        "model": row[7],
-        "timestamp": row[8],
-        "status": row[9]
+        "color": row[5],
+        "color_hex": row[6],
+        "vehicle_number": row[7],
+        "model": row[8],
+        "timestamp": row[9],
+        "status": row[10]
     }
 
 # Start aggregator in background thread
