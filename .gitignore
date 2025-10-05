@@ -4,6 +4,9 @@ __pycache__/
 *.pyo
 *.pyd
 
+keyframes/
+processed_keyframes/
+
 # Virtual environment
 venv/
 /venv/

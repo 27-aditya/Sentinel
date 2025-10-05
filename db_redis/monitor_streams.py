@@ -32,7 +32,7 @@ def monitor_streams():
                 except redis.ResponseError:
                     print(f"{stream}: Stream does not exist")
             
-            time.sleep(5)  # Update every 5 seconds
+            time.sleep(20)  # Update every 5 seconds
             
         except KeyboardInterrupt:
             print("\nMonitoring stopped")

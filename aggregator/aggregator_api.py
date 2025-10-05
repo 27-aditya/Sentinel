@@ -27,14 +27,14 @@ class ResultAggregator:
         
         cursor.execute("""
             INSERT INTO vehicles (vehicle_id, vehicle_type, full_image_path, plate_image_path, 
-                                color, vehicle_number, model, status)
+                                colour, vehicle_number, model, status)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             job_data.get("vehicle_id"),
             job_data.get("vehicle_type"),
             job_data.get("frame_path"),
             job_data.get("plate_path"),
-            job_data.get("color", ""),
+            job_data.get("colour", ""),
             job_data.get("vehicle_number", ""),
             job_data.get("model", ""),
             "completed"
@@ -62,17 +62,20 @@ class ResultAggregator:
                         worker = fields.get("worker")
                         result = fields.get("result")
                         status = fields.get("status")
+                        vehicle_id = fields.get("vehicle_id")  # Get the UUID vehicle_id
                         
                         print(f"Received result: {job_id} from {worker} -> {result}")
                         
                         # Store result
                         if job_id not in self.pending_jobs:
-                            # Get original job details
-                            self.pending_jobs[job_id] = {"results": {}}
+                            self.pending_jobs[job_id] = {
+                                "results": {},
+                                "vehicle_id": vehicle_id  # Store the UUID vehicle_id
+                            }
                             
                         self.pending_jobs[job_id]["results"][worker] = result
                         
-                        # Get vehicle type from job_id (assuming format: car_123_uuid)
+                        # Get vehicle type from job_id
                         vehicle_type = job_id.split("_")[0]
                         expected_workers = get_expected_workers(vehicle_type)
                         
@@ -83,21 +86,23 @@ class ResultAggregator:
                             
                             # Prepare data for database
                             results = self.pending_jobs[job_id]["results"]
+                            stored_vehicle_id = self.pending_jobs[job_id]["vehicle_id"]
+                            
                             job_data = {
-                                "vehicle_id": job_id.split("_")[1],  # Extract ID
+                                "vehicle_id": stored_vehicle_id,  # Use the UUID format
                                 "vehicle_type": vehicle_type,
-                                "frame_path": f"keyframes/{job_id}.jpg",  # Approximate
+                                "frame_path": f"keyframes/{job_id}.jpg",
                                 "plate_path": f"processed_keyframes/{job_id}_plate.jpg",
-                                "color": results.get("color", ""),
+                                "colour": results.get("colour", ""),
                                 "vehicle_number": results.get("ocr", ""),
                                 "model": results.get("logo", "")
                             }
                             
                             # Save to database
                             self.save_to_database(job_data)
-                            print(f"Saved {job_id} to database")
+                            print(f"Saved {job_id} to database with vehicle_id: {stored_vehicle_id}")
                             
-                            # Send ACK (optional for now)
+                            # Send ACK
                             self.r.xadd(VEHICLE_ACK_STREAM, {
                                 "job_id": job_id,
                                 "status": "completed"
@@ -123,7 +128,7 @@ async def get_vehicles():
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT vehicle_id, vehicle_type, color, vehicle_number, model, timestamp
+        SELECT vehicle_id, vehicle_type, colour, vehicle_number, model, timestamp
         FROM vehicles 
         ORDER BY timestamp DESC LIMIT 100
     """)
@@ -133,7 +138,7 @@ async def get_vehicles():
         vehicles.append({
             "vehicle_id": row[0],
             "vehicle_type": row[1], 
-            "color": row[2],
+            "colour": row[2],
             "vehicle_number": row[3],
             "model": row[4],
             "timestamp": row[5]
@@ -164,7 +169,7 @@ async def get_vehicle(vehicle_id: str):
         "vehicle_type": row[2],
         "full_image_path": row[3],
         "plate_image_path": row[4],
-        "color": row[5],
+        "colour": row[5],
         "vehicle_number": row[6],
         "model": row[7],
         "timestamp": row[8],

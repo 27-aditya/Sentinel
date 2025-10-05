@@ -18,7 +18,7 @@ STREAMS = {
 
 # Consumer groups
 CONSUMER_GROUPS = {
-    "vehicle_jobs": ["ocr_workers", "color_workers", "logo_workers"],
+    "vehicle_jobs": ["ocr_workers", "colour_workers", "logo_workers"],
     "vehicle_results": ["aggregator"],
     "vehicle_ack": ["ingest"]
 }
@@ -101,10 +101,10 @@ def test_streams():
             print("  Message acknowledged")
         
         # Test 3: Test that the same job appears in other groups
-        messages = r.xreadgroup("color_workers", "test_consumer", {"vehicle_jobs": ">"}, count=1)
+        messages = r.xreadgroup("colour_workers", "test_consumer", {"vehicle_jobs": ">"}, count=1)
         if messages and len(messages[0][1]) > 0:
-            print("  Successfully read same message from color_workers group")
-            r.xack("vehicle_jobs", "color_workers", messages[0][1][0][0])
+            print("  Successfully read same message from colour_workers group")
+            r.xack("vehicle_jobs", "colour_workers", messages[0][1][0][0])
         
         messages = r.xreadgroup("logo_workers", "test_consumer", {"vehicle_jobs": ">"}, count=1)
         if messages and len(messages[0][1]) > 0:
