@@ -18,7 +18,7 @@ STREAMS = {
 
 # Consumer groups
 CONSUMER_GROUPS = {
-    "vehicle_jobs": ["ocr_workers", "color_workers", "logo_workers"],
+    "vehicle_jobs": ["ocr_workers", "colour_workers", "logo_workers"],
     "vehicle_results": ["aggregator"],
     "vehicle_ack": ["ingest"]
 }
@@ -52,6 +52,29 @@ def setup_streams_and_groups():
         print(f"Failed to setup streams: {e}")
         return False
 
+def cleanup_streams():
+    """Clean up test data and optionally remove all streams."""
+    print("Cleaning up test messages and streams...")
+
+    try:
+        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
+
+        # Delete only test messages
+        for stream in STREAMS.values():
+            try:
+                info = r.xinfo_stream(stream)
+                if info["length"] > 0:
+                    r.delete(stream)
+                    print(f"  Deleted stream '{stream}' and its data.")
+            except redis.ResponseError:
+                print(f"  Stream '{stream}' does not exist, skipping.")
+        
+        print("Cleanup complete.")
+        return True
+    except Exception as e:
+        print(f"Cleanup failed: {e}")
+        return False
+
 def test_streams():
     """Test Redis streams functionality"""
     print("Testing Redis streams...")
@@ -78,10 +101,10 @@ def test_streams():
             print("  Message acknowledged")
         
         # Test 3: Test that the same job appears in other groups
-        messages = r.xreadgroup("color_workers", "test_consumer", {"vehicle_jobs": ">"}, count=1)
+        messages = r.xreadgroup("colour_workers", "test_consumer", {"vehicle_jobs": ">"}, count=1)
         if messages and len(messages[0][1]) > 0:
-            print("  Successfully read same message from color_workers group")
-            r.xack("vehicle_jobs", "color_workers", messages[0][1][0][0])
+            print("  Successfully read same message from colour_workers group")
+            r.xack("vehicle_jobs", "colour_workers", messages[0][1][0][0])
         
         messages = r.xreadgroup("logo_workers", "test_consumer", {"vehicle_jobs": ">"}, count=1)
         if messages and len(messages[0][1]) > 0:
@@ -137,6 +160,8 @@ def main():
     if not test_streams():
         print("Stream tests failed")
         sys.exit(1)
+
+    # cleanup_streams()
     
     print("\n" + "="*60)
     print("Redis setup for Sentinel completed successfully!")

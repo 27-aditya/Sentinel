@@ -1,4 +1,5 @@
 import cv2
+import os
 import numpy as np
 import uuid
 import datetime
@@ -42,19 +43,26 @@ def preprocess_for_ocr(image):
     return binary
 
 def publish_job(vehicle_type, frame_path, plate_path, track_id):
-    job_id = f"{vehicle_type}_{track_id}_{uuid.uuid4().hex[:8]}"
+    timestamp = datetime.datetime.utcnow()
+    timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
+    
+    uuid_part = uuid.uuid4().hex[:8]
+    vehicle_id = f"{uuid_part}_{timestamp_str}_{vehicle_type}"
+    
+    job_id = f"{vehicle_type}_{track_id}_{uuid_part}"
+    
     payload = {
         "job_id": job_id,
-        "vehicle_id": str(track_id),
+        "vehicle_id": vehicle_id, 
         "vehicle_type": vehicle_type,
         "frame_path": frame_path,
         "plate_path": plate_path,
-        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "timestamp": timestamp.isoformat(),
     }
     r.xadd(VEHICLE_JOBS_STREAM, payload)
-    print(f"Published job: {job_id}")
+    print(f"Published job: {job_id} (Vehicle ID: {vehicle_id})")
 
-# Main loop (same as yours but uses updated publish_job)
+# Main loop
 frame_num = 0
 while True:
     ret, frame = cap.read()
@@ -80,7 +88,7 @@ while True:
             track_id = track_ids[i]
             class_id = class_ids[i]
 
-            if class_id == 3:  # bike padding
+            if class_id == 3:  # motorcycle padding
                 box_height = y2 - y1
                 padding_top = int(box_height * 2.5)
                 padding_sides = int((x2 - x1) * 0.2)

@@ -56,16 +56,16 @@ def create_tables():
         # Create vehicles table
         """
         CREATE TABLE IF NOT EXISTS vehicles (
-            id SERIAL PRIMARY KEY,
-            vehicle_id VARCHAR(100) UNIQUE NOT NULL,
-            vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('car', 'bike', 'bus', 'auto')),
-            full_image_path VARCHAR(255),
-            plate_image_path VARCHAR(255),
-            color VARCHAR(50),
-            vehicle_number VARCHAR(20),
-            model VARCHAR(100),
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
+        id SERIAL PRIMARY KEY,
+        vehicle_id VARCHAR(100) UNIQUE NOT NULL,
+        vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('car', 'motorcycle', 'bus', 'truck')),
+        full_image_path VARCHAR(255),
+        plate_image_path VARCHAR(255),
+        colour VARCHAR(50),
+        vehicle_number VARCHAR(20),
+        model VARCHAR(100),
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
         );
         """,
         
@@ -75,7 +75,7 @@ def create_tables():
             id SERIAL PRIMARY KEY,
             job_id VARCHAR(100) UNIQUE NOT NULL,
             vehicle_id VARCHAR(100),
-            worker_type VARCHAR(10) NOT NULL CHECK (worker_type IN ('ocr', 'color', 'logo')),
+            worker_type VARCHAR(10) NOT NULL CHECK (worker_type IN ('ocr', 'colour', 'logo')),
             status VARCHAR(20) DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'failed')),
             result JSONB,
             started_at TIMESTAMP,

@@ -24,7 +24,7 @@ VEHICLE_ACK_STREAM = "vehicle_ack"
 
 # Consumer Groups
 OCR_GROUP = "ocr_workers"
-COLOR_GROUP = "color_workers"
+COLOUR_GROUP = "colour_workers"
 LOGO_GROUP = "logo_workers"
 AGGREGATOR_GROUP = "aggregator" 
 INGEST_GROUP = "ingest"
@@ -37,15 +37,15 @@ MAX_RETRIES = 3
 
 # Worker Types
 WORKER_TYPES = {
-    "ocr": ["car", "bike", "bus", "auto"],      # OCR works on all vehicles
-    "color": ["car"],                            # Color only for cars
+    "ocr": ["car", "bus", "motorcycle", "truck"],      # OCR works on all vehicles
+    "colour": ["car"],                            # Colour only for cars
     "logo": ["car"]                              # Logo/model only for cars
 }
 
 def get_expected_workers(vehicle_type):
     """Get list of workers expected for a vehicle type"""
     if vehicle_type == "car":
-        return ["ocr", "color", "logo"] 
+        return ["ocr", "colour", "logo"] 
     else:
         return ["ocr"]
 

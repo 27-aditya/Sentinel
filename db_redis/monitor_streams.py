@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 import redis
 import time
-from sentinel_redis_config import *
+from db_redis.sentinel_redis_config import *
 
 def monitor_streams():
     """Monitor all Redis streams"""
@@ -33,7 +32,7 @@ def monitor_streams():
                 except redis.ResponseError:
                     print(f"{stream}: Stream does not exist")
             
-            time.sleep(5)  # Update every 5 seconds
+            time.sleep(20)  # Update every 5 seconds
             
         except KeyboardInterrupt:
             print("\nMonitoring stopped")
