@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Live Stream - {{ location }}</title>
+    <style>
+      body {
+        margin: 0;
+        background-color: white;
+        color: white;
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+      h1 {
+        margin-bottom: 20px;
+        color: #0b1120;
+      }
+      .stream-container {
+        border: 3px solid #1e2a40;
+        overflow: hidden;
+        background-color: #111;
+      }
+      img {
+        display: block;
+        max-width: 90vw;
+        max-height: 80vh;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Live Stream - {{ location }}</h1>
+    <div class="stream-container">
+      <img src="/stream_feed" alt="RTSP Stream" />
+    </div>
+  </body>
+</html>

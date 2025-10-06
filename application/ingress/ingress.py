@@ -6,28 +6,31 @@ import datetime
 from ultralytics import YOLO
 from db_redis.sentinel_redis_config import *
 
-# ---------------- CONFIG ----------------
 model = YOLO("yolov8s.pt")
 
 # Get the LOCATION from the orchestrator
 LOCATION = os.getenv("LOCATION", "DEFAULT_LOCATION")
 print(f"Ingress started for location: {LOCATION}")
 
+rtsp_url = os.getenv("RTSP_STREAM")
+if not rtsp_url:
+    print("Error: RTSP_STREAM not set in environment variables.")
+    exit(1)
+
+cap = cv2.VideoCapture(rtsp_url)
+if not cap.isOpened():
+    print(f"Error: Cannot connect to RTSP stream at {rtsp_url}")
+    exit(1)
+
 # The output directory for saving keyframes
 os.makedirs("keyframes", exist_ok=True)
-os.makedirs("processed_keyframes", exist_ok=True)
+# os.makedirs("processed_keyframes", exist_ok=True)
 
 # Connect Redis using config
 r = get_redis_connection()
 
 # Track saved vehicles to avoid duplicates
 saved_ids = set()
-
-# RTSP connection
-cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/stream")
-if not cap.isOpened():
-    print("Error: Cannot connect to RTSP stream")
-    exit()
 
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 FRAME_WIDTH = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -119,15 +122,16 @@ while True:
                         filename = f"keyframes/{vehicle_type}_{track_id}_frame{frame_num}.jpg"
                         cv2.imwrite(filename, vehicle_crop)
 
-                        processed = preprocess_for_ocr(vehicle_crop)
-                        plate_filename = f"processed_keyframes/{vehicle_type}_{track_id}_frame{frame_num}_plate.jpg"
-                        cv2.imwrite(plate_filename, processed)
-
+                        # processed = preprocess_for_ocr(vehicle_crop)
+                        # plate_filename = f"processed_keyframes/{vehicle_type}_{track_id}_frame{frame_num}_plate.jpg"
+                        # cv2.imwrite(plate_filename, processed)
+                        plate_filename = ""  
+                        
                         publish_job(vehicle_type, filename, plate_filename, track_id)
 
-    cv2.imshow("Vehicle Trigger System", frame)
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
+    # cv2.imshow("Vehicle Trigger System", frame)
+    # if cv2.waitKey(1) & 0xFF == ord("q"):
+    #     break
 
 cap.release()
 cv2.destroyAllWindows()

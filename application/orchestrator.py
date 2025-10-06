@@ -20,7 +20,22 @@ class SentinelOrchestrator:
         self.shutdown_lock = threading.Lock()
         
         self.location = os.getenv("LOCATION", "DEFAULT_LOCATION")
+        self.rtsp_stream = os.getenv("RTSP_STREAM")
+
+        # DB credentials
+        self.db_host = os.getenv("DB_HOST")
+        self.db_port = os.getenv("DB_PORT", "5432")
+        self.db_name = os.getenv("DB_NAME")
+        self.db_user = os.getenv("DB_USER")
+        self.db_pass = os.getenv("DB_PASS")
+        
+        if not self.rtsp_stream or self.rtsp_stream.strip() == "":
+            print("\nERROR: RTSP_STREAM not found in .env")
+            print("   Please set RTSP_STREAM=<your_rtsp_url> before running.")
+            sys.exit(1)
+
         print(f"Orchestrator initialized for location: {self.location}")
+        print(f"RTSP Stream: {self.rtsp_stream}")
 
     def cleanup_redis(self):
         """Flush Redis streams and clean up"""
@@ -137,40 +152,51 @@ class SentinelOrchestrator:
     def start_aggregator(self):
         """Start the aggregator + API"""
         print("\nStarting Aggregator + API...")
-        aggregator_env = {"LOCATION": self.location}
-        return self.start_process("Aggregator", ["python3", "aggregator/aggregator_api.py"], "93")
+
+        if not self.rtsp_stream:
+            raise Exception("RTSP_STREAM is missing in environment file (.env). Exiting.")
+
+        if not all([self.db_host, self.db_name, self.db_user, self.db_pass]):
+            raise Exception("Database credentials missing in .env. Exiting.")
+
+        aggregator_env = {
+            "LOCATION": self.location,
+            "RTSP_STREAM": self.rtsp_stream,
+            "DB_HOST": self.db_host,
+            "DB_PORT": self.db_port,
+            "DB_NAME": self.db_name,
+            "DB_USER": self.db_user,
+            "DB_PASS": self.db_pass
+        }
+
+        return self.start_process(
+            "Aggregator",
+            ["python3", "aggregator/aggregator_api.py"],
+            "93",
+            extra_env=aggregator_env
+        )
     
     def start_monitor(self):
         """Start the Redis monitor"""
         print("\nStarting Redis Monitor...")
         return self.start_process("Monitor", ["python3", "db_redis/monitor_streams.py"], "96")
     
-    def start_file_server(self):
-        """Start the file server"""
-        print(f"\nStarting File Server for location: {self.location}...")
-        
-        file_server_env = {"LOCATION": self.location}
-        
-        return self.start_process(
-            "File Server", 
-            ["python3", "fileserver/fileserver.py"], 
-            "97",  
-            extra_env=file_server_env
-        )
-    
     def start_ingress(self):
-        """Start the ingress process with location environment variable"""
+        """Start the ingress process with location + RTSP stream"""
         print(f"\nStarting Ingress for location: {self.location}...")
         
-        ingress_env = {"LOCATION": self.location}
+        ingress_env = {
+            "LOCATION": self.location,
+            "RTSP_STREAM": self.rtsp_stream
+        }
         
         return self.start_process(
-            "Ingress", 
-            ["python3", "ingress/ingress.py"], 
+            "Ingress",
+            ["python3", "ingress/ingress.py"],
             "91",
             extra_env=ingress_env
         )
-    
+
     def monitor_system(self):
         """Monitor system health and show status"""
         print(f"\n{'='*80}")
@@ -265,19 +291,14 @@ class SentinelOrchestrator:
         print("SENTINEL SYSTEM ORCHESTRATOR")
         print("=" * 80)
         print(f"Location: {self.location}")
-        
+        print(f"RTSP Stream: {self.rtsp_stream}")
+
         if not self.cleanup_redis():
             print("Redis cleanup failed. Exiting.")
             return False
         
         if not self.start_workers():
             print("Worker startup failed. Exiting.")
-            self.stop_all()
-            return False
-        
-        time.sleep(2)
-        if not self.start_file_server():
-            print("File server startup failed. Exiting.")
             self.stop_all()
             return False
         

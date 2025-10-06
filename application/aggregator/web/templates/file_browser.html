@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Sentinel File Server - {{ relative_path }}</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 40px;
+        background-color: #f7f7f7;
+      }
+      h1 {
+        color: #333;
+        border-bottom: 2px solid #001f3f;
+        padding-bottom: 5px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      th,
+      td {
+        padding: 10px 15px;
+        border-bottom: 1px solid #eee;
+      }
+      th {
+        background: #001f3f;
+        color: white;
+        text-align: left;
+      }
+      a {
+        color: #1565c0;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .folder {
+        color: #1e88e5;
+        font-weight: 600;
+      }
+      .image {
+        color: #2e7d32;
+      }
+      .size {
+        text-align: right;
+        color: #777;
+      }
+      .date {
+        color: #777;
+      }
+      .breadcrumb {
+        background: white;
+        padding: 8px 10px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      }
+      .footer {
+        text-align: center;
+        color: #999;
+        margin-top: 40px;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sentinel File Server</h1>
+
+    <div class="breadcrumb">
+      {% for crumb in breadcrumbs %} {% if not loop.last %}
+      <a href="{{ crumb.href }}">{{ crumb.name }}</a> / {% else %}
+      <span>{{ crumb.name }}</span>
+      {% endif %} {% endfor %}
+    </div>
+
+    <table>
+      <tr>
+        <th>Name</th>
+        <th>Size</th>
+        <th>Modified</th>
+      </tr>
+
+      {% if parent_dir %}
+      <tr>
+        <td>
+          <a href="{{ parent_dir }}" class="folder">.. (Parent Directory)</a>
+        </td>
+        <td class="size">-</td>
+        <td class="date">-</td>
+      </tr>
+      {% endif %} {% for folder in folders %}
+      <tr>
+        <td>
+          <a href="{{ folder.href }}" class="folder">{{ folder.name }}/</a>
+        </td>
+        <td class="size">-</td>
+        <td class="date">{{ folder.mtime }}</td>
+      </tr>
+      {% endfor %} {% for file in files %}
+      <tr>
+        <td>
+          <a
+            href="{{ file.href }}"
+            class="{{ 'image' if file.is_image else '' }}"
+            target="{{ '_blank' if file.is_image else '_self' }}"
+            >{{ file.name }}</a
+          >
+        </td>
+        <td class="size">{{ file.size_str }}</td>
+        <td class="date">{{ file.mtime }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    <div class="footer">
+      Sentinel File Server | Location: <b>{{ location }}</b><br />
+      Generated {{ generated_at }}
+    </div>
+  </body>
+</html>
