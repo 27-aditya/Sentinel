@@ -59,8 +59,7 @@ def create_tables():
         id SERIAL PRIMARY KEY,
         vehicle_id VARCHAR(100) UNIQUE NOT NULL,
         vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('car', 'motorcycle', 'bus', 'truck')),
-        full_image_path VARCHAR(255),
-        plate_image_path VARCHAR(255),
+        keyframe_url VARCHAR(500),
         color VARCHAR(50),
         color_hex VARCHAR(7),
         vehicle_number VARCHAR(20),
@@ -70,7 +69,7 @@ def create_tables():
         status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
         );
         """,
-        
+
         # Create processing_jobs table
         """
         CREATE TABLE IF NOT EXISTS processing_jobs (

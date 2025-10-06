@@ -65,6 +65,26 @@
         margin-top: 40px;
         font-size: 0.9rem;
       }
+      .image-preview-wrapper {
+        position: relative;
+        display: inline-block;
+      }
+
+      .image-preview-wrapper img.preview {
+        display: none;
+        position: fixed;
+        top: 5vh;
+        right: 20px;
+        max-height: 40vh;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        z-index: 1000;
+        transition: all 0.2s ease-in-out;
+      }
+
+      .image-preview-wrapper:hover img.preview {
+        display: block;
+      }
     </style>
   </head>
   <body>
@@ -103,13 +123,16 @@
       {% endfor %} {% for file in files %}
       <tr>
         <td>
-          <a
-            href="{{ file.href }}"
-            class="{{ 'image' if file.is_image else '' }}"
-            target="{{ '_blank' if file.is_image else '_self' }}"
-            >{{ file.name }}</a
-          >
+          {% if file.is_image %}
+          <span class="image-preview-wrapper">
+            <a href="{{ file.href }}" target="_blank">{{ file.name }}</a>
+            <img src="{{ file.href }}" alt="{{ file.name }}" class="preview" />
+          </span>
+          {% else %}
+          <a href="{{ file.href }}">{{ file.name }}</a>
+          {% endif %}
         </td>
+
         <td class="size">{{ file.size_str }}</td>
         <td class="date">{{ file.mtime }}</td>
       </tr>

@@ -3,35 +3,81 @@ import os
 import numpy as np
 import uuid
 import datetime
+from pathlib import Path
 from ultralytics import YOLO
 from db_redis.sentinel_redis_config import *
 
 model = YOLO("yolov8s.pt")
 
-# Get the LOCATION from the orchestrator
+# Get configuration from environment
 LOCATION = os.getenv("LOCATION", "DEFAULT_LOCATION")
+rtsp_url = os.getenv("RTSP_STREAM")
+
 print(f"Ingress started for location: {LOCATION}")
 
-rtsp_url = os.getenv("RTSP_STREAM")
 if not rtsp_url:
     print("Error: RTSP_STREAM not set in environment variables.")
     exit(1)
 
+# Initialize video capture
 cap = cv2.VideoCapture(rtsp_url)
 if not cap.isOpened():
     print(f"Error: Cannot connect to RTSP stream at {rtsp_url}")
     exit(1)
 
-# The output directory for saving keyframes
-os.makedirs("keyframes", exist_ok=True)
-# os.makedirs("processed_keyframes", exist_ok=True)
+# Set up storage paths - store directly in web/static structure
+PROJECT_ROOT = Path(__file__).resolve().parent.parent 
+AGGREGATOR_WEB_ROOT = PROJECT_ROOT / "aggregator" / "web"
+STATIC_PATH = AGGREGATOR_WEB_ROOT / "static"
+LOCATION_PATH = STATIC_PATH / LOCATION
 
-# Connect Redis using config
+def ensure_storage_structure():
+    """Ensure the aggregator/web/static/location directory structure exists"""
+    AGGREGATOR_WEB_ROOT.mkdir(exist_ok=True)
+    STATIC_PATH.mkdir(exist_ok=True)
+    LOCATION_PATH.mkdir(exist_ok=True)
+    print(f"Storage structure initialized: {LOCATION_PATH}")
+
+def get_date_folder():
+    """Get or create today's date folder"""
+    today = datetime.date.today().strftime("%Y-%m-%d")
+    date_folder = LOCATION_PATH / today
+    date_folder.mkdir(exist_ok=True)
+    return date_folder, today
+
+def save_keyframe_organized(vehicle_crop, vehicle_id):
+    """Save keyframe in organized structure: /aggregator/web/static/LOCATION/DATE/VEHICLE_ID.jpg"""
+    try:
+        date_folder, date_str = get_date_folder()
+        filename = f"{vehicle_id}.jpg"
+        file_path = date_folder / filename
+        
+        # Save the image
+        success = cv2.imwrite(str(file_path), vehicle_crop)
+        
+        if success:
+            relative_path = f"static/{LOCATION}/{date_str}/{filename}"
+            print(f"Saved keyframe: {relative_path}")
+            print(f"Full path: {file_path}")
+            return str(file_path), relative_path
+        else:
+            print(f"Failed to save keyframe for {vehicle_id}")
+            return None, None
+            
+    except Exception as e:
+        print(f"Error saving keyframe for {vehicle_id}: {e}")
+        return None, None
+
+# Initialize storage structure
+ensure_storage_structure()
+
+# Connect to Redis
 r = get_redis_connection()
 
 # Track saved vehicles to avoid duplicates
 saved_ids = set()
 
+# Set up video capture
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 FRAME_WIDTH = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 FRAME_HEIGHT = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -43,47 +89,42 @@ CENTER_LINE_Y = 500
 ZONE_EXPANSION = 250
 TRIGGER_ZONE = (0, CENTER_LINE_Y - ZONE_EXPANSION, FRAME_WIDTH, CENTER_LINE_Y + ZONE_EXPANSION)
 
-def preprocess_for_ocr(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    denoised = cv2.medianBlur(gray, 5)
-    binary = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    return binary
-
-def publish_job(vehicle_type, frame_path, plate_path, track_id):
+def publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_id):
+    """Publish job with organized file paths"""
     timestamp = datetime.datetime.utcnow()
-    timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
-    
-    uuid_part = uuid.uuid4().hex[:8]
-    vehicle_id = f"{uuid_part}_{timestamp_str}_{vehicle_type}_{LOCATION}"
-    
-    job_id = f"{vehicle_type}_{track_id}_{uuid_part}"
+    job_id = f"{vehicle_type}_{track_id}_{vehicle_id.split('_')[0]}"  
     
     payload = {
         "job_id": job_id,
         "vehicle_id": vehicle_id, 
         "vehicle_type": vehicle_type,
-        "frame_path": frame_path,
-        "plate_path": plate_path,
+        "frame_path": organized_path,      
+        "frame_url": relative_path,  
         "timestamp": timestamp.isoformat(),
         "location": LOCATION
     }
+    
     r.xadd(VEHICLE_JOBS_STREAM, payload)
     print(f"Published job: {job_id} (Vehicle ID: {vehicle_id}) @ {LOCATION}")
+    print(f"  Keyframe stored: {relative_path}")
 
-# Main loop
+# Main processing loop
 frame_num = 0
+print("Starting vehicle detection...")
+
 while True:
     ret, frame = cap.read()
     if not ret:
         print("Failed to grab frame from RTSP stream")
         cap.release()
-        cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/stream")
+        cap = cv2.VideoCapture(rtsp_url)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         continue
         
     frame_num += 1
     tz_x1, tz_y1, tz_x2, tz_y2 = TRIGGER_ZONE
 
+    # Run YOLO tracking
     results = model.track(frame, classes=[2, 3, 5, 7], verbose=False, tracker="bytetrack.yaml", persist=True)
 
     if results[0].boxes is not None and results[0].boxes.id is not None:
@@ -96,7 +137,8 @@ while True:
             track_id = track_ids[i]
             class_id = class_ids[i]
 
-            if class_id == 3:  # motorcycle padding
+            # Apply motorcycle padding
+            if class_id == 3:  # motorcycle
                 box_height = y2 - y1
                 padding_top = int(box_height * 2.5)
                 padding_sides = int((x2 - x1) * 0.2)
@@ -107,6 +149,7 @@ while True:
             else:
                 y1_padded, x1_padded, x2_padded, y2_padded = y1, x1, x2, y2
 
+            # Check if vehicle is in trigger zone
             vehicle_center_x = (x1 + x2) // 2
             vehicle_bottom_y = y2
 
@@ -115,23 +158,27 @@ while True:
                     saved_ids.add(track_id)
 
                     vehicle_type = model.names[class_id]
-                    print(f"Vehicle of class '{vehicle_type}' assigned ID {track_id}")
+                    
+                    # Generate vehicle ID with timestamp, type, and location
+                    timestamp = datetime.datetime.utcnow()
+                    timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
+                    uuid_part = uuid.uuid4().hex[:8]
+                    vehicle_id = f"{uuid_part}_{timestamp_str}_{vehicle_type}_{LOCATION}"
+                    
+                    print(f"Vehicle '{vehicle_type}' ID {track_id} detected -> {vehicle_id}")
 
+                    # Extract and save vehicle crop
                     vehicle_crop = frame[y1_padded:y2_padded, x1_padded:x2_padded]
                     if vehicle_crop.size > 0:
-                        filename = f"keyframes/{vehicle_type}_{track_id}_frame{frame_num}.jpg"
-                        cv2.imwrite(filename, vehicle_crop)
-
-                        # processed = preprocess_for_ocr(vehicle_crop)
-                        # plate_filename = f"processed_keyframes/{vehicle_type}_{track_id}_frame{frame_num}_plate.jpg"
-                        # cv2.imwrite(plate_filename, processed)
-                        plate_filename = ""  
+                        # Save in organized structure
+                        organized_path, relative_path = save_keyframe_organized(vehicle_crop, vehicle_id)
                         
-                        publish_job(vehicle_type, filename, plate_filename, track_id)
-
-    # cv2.imshow("Vehicle Trigger System", frame)
-    # if cv2.waitKey(1) & 0xFF == ord("q"):
-    #     break
+                        if organized_path and relative_path:
+                            # Publish job with organized paths
+                            publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_id)
+                        else:
+                            print(f"Failed to save keyframe for {vehicle_id}")
 
 cap.release()
 cv2.destroyAllWindows()
+print("Ingress stopped")

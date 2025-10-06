@@ -93,14 +93,13 @@ class ResultAggregator:
         cursor = conn.cursor()
 
         cursor.execute("""
-            INSERT INTO vehicles (vehicle_id, vehicle_type, full_image_path, plate_image_path, 
+            INSERT INTO vehicles (vehicle_id, vehicle_type, keyframe_url, 
                                 color, color_hex, vehicle_number, model, location, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             job_data.get("vehicle_id"),
             job_data.get("vehicle_type"),
-            job_data.get("frame_path"),
-            job_data.get("plate_path"),
+            job_data.get("keyframe_url"), 
             job_data.get("color", ""),
             job_data.get("color_hex", "#000000"),
             job_data.get("vehicle_number", ""),
@@ -130,17 +129,21 @@ class ResultAggregator:
                         job_id = fields.get("job_id")
                         worker = fields.get("worker")
                         result = fields.get("result")
-                        status = fields.get("status")
+                        frame_url = fields.get("frame_url")  
                         vehicle_id = fields.get("vehicle_id")
 
                         print(f"Received result: {job_id} from {worker} -> {result}")
 
                         if job_id not in self.pending_jobs:
                             location = fields.get("location", self.extract_location_from_vehicle_id(vehicle_id))
+
+                            keyframe_url = f"http://localhost:8000/{frame_url}" if frame_url else None
+                        
                             self.pending_jobs[job_id] = {
                                 "results": {},
                                 "vehicle_id": vehicle_id,
-                                "location": location
+                                "location": location,
+                                "keyframe_url": keyframe_url  
                             }
 
                         self.pending_jobs[job_id]["results"][worker] = result
@@ -161,8 +164,7 @@ class ResultAggregator:
                             job_data = {
                                 "vehicle_id": stored_vehicle_id,
                                 "vehicle_type": vehicle_type,
-                                "frame_path": f"keyframes/{job_id}.jpg",
-                                "plate_path": f"processed_keyframes/{job_id}_plate.jpg",
+                                "keyframe_url": keyframe_url, 
                                 "color": color_name,
                                 "color_hex": color_hex,
                                 "vehicle_number": results.get("ocr", ""),
@@ -195,23 +197,26 @@ async def get_vehicles():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT vehicle_id, vehicle_type, color, color_hex, vehicle_number, model, location, timestamp
+        SELECT vehicle_id, vehicle_type, keyframe_url, color, color_hex, vehicle_number, model, location, timestamp
         FROM vehicles 
-        ORDER BY timestamp DESC LIMIT 100
+        ORDER BY timestamp DESC 
+        LIMIT 100
     """)
     vehicles = [
         {
             "vehicle_id": row[0],
             "vehicle_type": row[1],
-            "color": row[2],
-            "color_hex": row[3],
-            "vehicle_number": row[4],
-            "model": row[5],
-            "location": row[6],
-            "timestamp": row[7]
+            "keyframe_url": row[2],
+            "color": row[3],
+            "color_hex": row[4],
+            "vehicle_number": row[5],
+            "model": row[6],
+            "location": row[7],
+            "timestamp": row[8],
         }
         for row in cursor.fetchall()
     ]
+
     cursor.close()
     conn.close()
     return vehicles
@@ -234,16 +239,16 @@ async def get_vehicle(vehicle_id: str):
         "id": row[0],
         "vehicle_id": row[1],
         "vehicle_type": row[2],
-        "full_image_path": row[3],
-        "plate_image_path": row[4],
-        "color": row[5],
-        "color_hex": row[6],
-        "vehicle_number": row[7],
-        "model": row[8],
-        "location": row[9],
-        "timestamp": row[10],
-        "status": row[11]
+        "keyframe_url": row[3],
+        "color": row[4],
+        "color_hex": row[5],
+        "vehicle_number": row[6],
+        "model": row[7],
+        "location": row[8],
+        "timestamp": row[9],
+        "status": row[10]
     }
+
 
 # File Browser Integration
 BASE_DIR = Path(__file__).resolve().parent
@@ -343,5 +348,5 @@ aggregator_thread.start()
 # Entrypoint
 if __name__ == "__main__":
     import uvicorn
-    print("Starting Sentinel Aggregator + File Server on http://localhost:8000")
+    print("Starting Sentinel Aggregator Server on http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)

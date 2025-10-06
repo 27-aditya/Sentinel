@@ -6,7 +6,7 @@ __pycache__/
 
 keyframes/
 processed_keyframes/
-/aggregator/web/static/
+application/aggregator/web/static/
 
 # Virtual environment
 venv/

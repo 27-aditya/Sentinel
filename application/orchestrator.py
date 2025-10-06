@@ -171,7 +171,7 @@ class SentinelOrchestrator:
 
         return self.start_process(
             "Aggregator",
-            ["python3", "aggregator/aggregator_api.py"],
+            ["python3", "aggregator/aggregator.py"],
             "93",
             extra_env=aggregator_env
         )
