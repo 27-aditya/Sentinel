@@ -8,6 +8,7 @@ from ultralytics import YOLO
 from db_redis.sentinel_redis_config import *
 
 model = YOLO("yolov8s.pt")
+detection_model = YOLO("license_plate_detector.pt")
 
 # Get configuration from environment
 LOCATION = os.getenv("LOCATION", "DEFAULT_LOCATION")
@@ -68,6 +69,33 @@ def save_keyframe_organized(vehicle_crop, vehicle_id):
         print(f"Error saving keyframe for {vehicle_id}: {e}")
         return None, None
 
+def detect_and_save_plate(vehicle_crop, vehicle_id):
+    """Save cropped license plate image in organized structure: /aggregator/web/static/LOCATION/DATE/VEHICLE_ID_plate.jpg"""
+    try:
+        plate_results = plate_model(vehicle_crop, verbose=False)
+        
+        if len(plate_results[0].boxes) > 0:
+            plate_box = plate_results[0].boxes.xyxy.cpu().numpy().astype(int)[0]
+            px1, py1, px2, py2 = plate_box
+            plate_crop = vehicle_crop[py1:py2, px1:px2]
+            
+            if plate_crop.size > 0:
+                date_folder, date_str = get_date_folder()
+                plate_filename = f"{vehicle_id}_plate.jpg"
+                plate_file_path = date_folder / plate_filename
+                
+                # Save the plate image
+                success = cv2.imwrite(str(plate_file_path), plate_crop)
+                if success:
+                    relative_plate_path = f"static/{LOCATION}/{date_str}/{plate_filename}"
+                    print(f"  - Saved plate: {relative_plate_path}")
+                    return str(plate_file_path), relative_plate_path
+                    
+    except Exception as e:
+        print(f"  - Error during plate detection for {vehicle_id}: {e}")
+        return None, None
+
+
 # Initialize storage structure
 ensure_storage_structure()
 
@@ -98,8 +126,10 @@ def publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_i
         "job_id": job_id,
         "vehicle_id": vehicle_id, 
         "vehicle_type": vehicle_type,
-        "frame_path": organized_path,      
+        "frame_path": organized_path,   
+        "plate_path": plate_path,   
         "frame_url": relative_path,  
+        "plate_url": plate_relative_path,
         "timestamp": timestamp.isoformat(),
         "location": LOCATION
     }
@@ -175,7 +205,8 @@ while True:
                         
                         if organized_path and relative_path:
                             # Publish job with organized paths
-                            publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_id)
+                            plate_path, plate_relative_path = detect_and_save_plate(vehicle_crop, vehicle_id)
+                            publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_id, plate_path, plate_relative_path)
                         else:
                             print(f"Failed to save keyframe for {vehicle_id}")
 

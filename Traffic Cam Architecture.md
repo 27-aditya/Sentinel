@@ -22,7 +22,7 @@ Output: {Id: vehicleId, Image: fullImage, Image: plateImage, String: colour, Str
          └──────┴───────────────────┘
                   results
 	                 │
-                     ▼
+                   ▼
             ┌─────────────────────┐
             │ Aggregator + API    │
             │ (FastAPI Proc 5)    │
