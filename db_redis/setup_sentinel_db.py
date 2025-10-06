@@ -65,6 +65,7 @@ def create_tables():
         color_hex VARCHAR(7),
         vehicle_number VARCHAR(20),
         model VARCHAR(100),
+        location VARCHAR(100),
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
         );

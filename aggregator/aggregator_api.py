@@ -29,6 +29,16 @@ class ResultAggregator:
             # Fallback for old format
             return result.strip(), "#000000"
         
+    def extract_location_from_vehicle_id(self, vehicle_id):
+        """Extract location from vehicle_id format: uuid_timestamp_vehicle_type_LOCATION"""
+        try:
+            parts = vehicle_id.split('_')
+            if len(parts) >= 4:
+                return parts[-1]
+            return "UNKNOWN"
+        except:
+            return "UNKNOWN"
+        
     def save_to_database(self, job_data):
         """Save completed job to database"""
         conn = get_db_connection()
@@ -36,8 +46,8 @@ class ResultAggregator:
         
         cursor.execute("""
             INSERT INTO vehicles (vehicle_id, vehicle_type, full_image_path, plate_image_path, 
-                                color, color_hex, vehicle_number, model, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                color, color_hex, vehicle_number, model, location, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             job_data.get("vehicle_id"),
             job_data.get("vehicle_type"),
@@ -47,6 +57,7 @@ class ResultAggregator:
             job_data.get("color_hex", "#000000"),
             job_data.get("vehicle_number", ""),
             job_data.get("model", ""),
+            job_data.get("location", "UNKNOWN"),
             "completed"
         ))
         
@@ -78,9 +89,12 @@ class ResultAggregator:
                         
                         # Store result
                         if job_id not in self.pending_jobs:
+                            location = fields.get("location", self.extract_location_from_vehicle_id(vehicle_id))
+                            
                             self.pending_jobs[job_id] = {
                                 "results": {},
-                                "vehicle_id": vehicle_id  # Store the UUID vehicle_id
+                                "vehicle_id": vehicle_id,
+                                "location": location
                             }
                             
                         self.pending_jobs[job_id]["results"][worker] = result
@@ -97,6 +111,7 @@ class ResultAggregator:
                             # Prepare data for database
                             results = self.pending_jobs[job_id]["results"]
                             stored_vehicle_id = self.pending_jobs[job_id]["vehicle_id"]
+                            location = self.pending_jobs[job_id]["location"]
                             
                             # Parse color result (color_name|hex_code format)
                             color_result = results.get("color", "unknown|#000000")
@@ -110,7 +125,8 @@ class ResultAggregator:
                                 "color": color_name,
                                 "color_hex": color_hex,
                                 "vehicle_number": results.get("ocr", ""),
-                                "model": results.get("logo", "")
+                                "model": results.get("logo", ""),
+                                "location": location
                             }
                             
                             # Save to database
@@ -143,7 +159,7 @@ async def get_vehicles():
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT vehicle_id, vehicle_type, color, color_hex, vehicle_number, model, timestamp
+        SELECT vehicle_id, vehicle_type, color, color_hex, vehicle_number, model, location, timestamp
         FROM vehicles 
         ORDER BY timestamp DESC LIMIT 100
     """)
@@ -157,7 +173,8 @@ async def get_vehicles():
             "color_hex": row[3],
             "vehicle_number": row[4],
             "model": row[5],
-            "timestamp": row[6]
+            "location": row[6],
+            "timestamp": row[7]
         })
     
     cursor.close()
@@ -189,8 +206,9 @@ async def get_vehicle(vehicle_id: str):
         "color_hex": row[6],
         "vehicle_number": row[7],
         "model": row[8],
-        "timestamp": row[9],
-        "status": row[10]
+        "location": row[9],
+        "timestamp": row[10],
+        "status": row[11]
     }
 
 # Start aggregator in background thread

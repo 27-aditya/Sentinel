@@ -9,6 +9,10 @@ from db_redis.sentinel_redis_config import *
 # ---------------- CONFIG ----------------
 model = YOLO("yolov8s.pt")
 
+# Get the LOCATION from the orchestrator
+LOCATION = os.getenv("LOCATION", "DEFAULT_LOCATION")
+print(f"Ingress started for location: {LOCATION}")
+
 # The output directory for saving keyframes
 os.makedirs("keyframes", exist_ok=True)
 os.makedirs("processed_keyframes", exist_ok=True)
@@ -47,7 +51,7 @@ def publish_job(vehicle_type, frame_path, plate_path, track_id):
     timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
     
     uuid_part = uuid.uuid4().hex[:8]
-    vehicle_id = f"{uuid_part}_{timestamp_str}_{vehicle_type}"
+    vehicle_id = f"{uuid_part}_{timestamp_str}_{vehicle_type}_{LOCATION}"
     
     job_id = f"{vehicle_type}_{track_id}_{uuid_part}"
     
@@ -58,9 +62,10 @@ def publish_job(vehicle_type, frame_path, plate_path, track_id):
         "frame_path": frame_path,
         "plate_path": plate_path,
         "timestamp": timestamp.isoformat(),
+        "location": LOCATION
     }
     r.xadd(VEHICLE_JOBS_STREAM, payload)
-    print(f"Published job: {job_id} (Vehicle ID: {vehicle_id})")
+    print(f"Published job: {job_id} (Vehicle ID: {vehicle_id}) @ {LOCATION}")
 
 # Main loop
 frame_num = 0

@@ -7,6 +7,9 @@ import threading
 import queue
 import psutil
 from db_redis.sentinel_redis_config import *
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class SentinelOrchestrator:
     def __init__(self):
@@ -16,6 +19,9 @@ class SentinelOrchestrator:
         self.shutdown_requested = False
         self.shutdown_lock = threading.Lock()
         
+        self.location = os.getenv("LOCATION", "DEFAULT_LOCATION")
+        print(f"Orchestrator initialized for location: {self.location}")
+
     def cleanup_redis(self):
         """Flush Redis streams and clean up"""
         print("Cleaning up Redis streams...")
@@ -65,7 +71,7 @@ class SentinelOrchestrator:
         except Exception as e:
             print(f"\033[91m[{name:>12}]\033[0m Log reader error: {e}")
     
-    def start_process(self, name, command, color_code, cwd=None):
+    def start_process(self, name, command, color_code, cwd=None, extra_env=None):
         """Start a process with colored logging"""
         print(f"Starting {name}...")
         
@@ -73,6 +79,9 @@ class SentinelOrchestrator:
             env = os.environ.copy()
             env['PYTHONPATH'] = f"{env.get('PYTHONPATH', '')}:."
             env['PYTHONUNBUFFERED'] = '1'  
+
+            if extra_env:
+                env.update(extra_env)
             
             process = subprocess.Popen(
                 command,
@@ -128,6 +137,7 @@ class SentinelOrchestrator:
     def start_aggregator(self):
         """Start the aggregator + API"""
         print("\nStarting Aggregator + API...")
+        aggregator_env = {"LOCATION": self.location}
         return self.start_process("Aggregator", ["python3", "aggregator/aggregator_api.py"], "93")
     
     def start_monitor(self):
@@ -135,10 +145,31 @@ class SentinelOrchestrator:
         print("\nStarting Redis Monitor...")
         return self.start_process("Monitor", ["python3", "db_redis/monitor_streams.py"], "96")
     
+    def start_file_server(self):
+        """Start the file server"""
+        print(f"\nStarting File Server for location: {self.location}...")
+        
+        file_server_env = {"LOCATION": self.location}
+        
+        return self.start_process(
+            "File Server", 
+            ["python3", "fileserver/fileserver.py"], 
+            "97",  
+            extra_env=file_server_env
+        )
+    
     def start_ingress(self):
-        """Start the ingress process"""
-        print("\nStarting Ingress...")
-        return self.start_process("Ingress", ["python3", "ingress/ingress.py"], "91")
+        """Start the ingress process with location environment variable"""
+        print(f"\nStarting Ingress for location: {self.location}...")
+        
+        ingress_env = {"LOCATION": self.location}
+        
+        return self.start_process(
+            "Ingress", 
+            ["python3", "ingress/ingress.py"], 
+            "91",
+            extra_env=ingress_env
+        )
     
     def monitor_system(self):
         """Monitor system health and show status"""
@@ -233,6 +264,7 @@ class SentinelOrchestrator:
         """Main orchestrator flow"""
         print("SENTINEL SYSTEM ORCHESTRATOR")
         print("=" * 80)
+        print(f"Location: {self.location}")
         
         if not self.cleanup_redis():
             print("Redis cleanup failed. Exiting.")
@@ -240,6 +272,12 @@ class SentinelOrchestrator:
         
         if not self.start_workers():
             print("Worker startup failed. Exiting.")
+            self.stop_all()
+            return False
+        
+        time.sleep(2)
+        if not self.start_file_server():
+            print("File server startup failed. Exiting.")
             self.stop_all()
             return False
         
