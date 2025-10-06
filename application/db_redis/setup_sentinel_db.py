@@ -59,23 +59,24 @@ def create_tables():
         id SERIAL PRIMARY KEY,
         vehicle_id VARCHAR(100) UNIQUE NOT NULL,
         vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('car', 'motorcycle', 'bus', 'truck')),
-        full_image_path VARCHAR(255),
-        plate_image_path VARCHAR(255),
-        colour VARCHAR(50),
+        keyframe_url VARCHAR(500),
+        color VARCHAR(50),
+        color_hex VARCHAR(7),
         vehicle_number VARCHAR(20),
         model VARCHAR(100),
+        location VARCHAR(100),
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
         );
         """,
-        
+
         # Create processing_jobs table
         """
         CREATE TABLE IF NOT EXISTS processing_jobs (
             id SERIAL PRIMARY KEY,
             job_id VARCHAR(100) UNIQUE NOT NULL,
             vehicle_id VARCHAR(100),
-            worker_type VARCHAR(10) NOT NULL CHECK (worker_type IN ('ocr', 'colour', 'logo')),
+            worker_type VARCHAR(10) NOT NULL CHECK (worker_type IN ('ocr', 'color', 'logo')),
             status VARCHAR(20) DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'failed')),
             result JSONB,
             started_at TIMESTAMP,

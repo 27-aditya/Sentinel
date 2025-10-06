@@ -7,6 +7,9 @@ import threading
 import queue
 import psutil
 from db_redis.sentinel_redis_config import *
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class SentinelOrchestrator:
     def __init__(self):
@@ -16,6 +19,24 @@ class SentinelOrchestrator:
         self.shutdown_requested = False
         self.shutdown_lock = threading.Lock()
         
+        self.location = os.getenv("LOCATION", "DEFAULT_LOCATION")
+        self.rtsp_stream = os.getenv("RTSP_STREAM")
+
+        # DB credentials
+        self.db_host = os.getenv("DB_HOST")
+        self.db_port = os.getenv("DB_PORT", "5432")
+        self.db_name = os.getenv("DB_NAME")
+        self.db_user = os.getenv("DB_USER")
+        self.db_pass = os.getenv("DB_PASS")
+        
+        if not self.rtsp_stream or self.rtsp_stream.strip() == "":
+            print("\nERROR: RTSP_STREAM not found in .env")
+            print("   Please set RTSP_STREAM=<your_rtsp_url> before running.")
+            sys.exit(1)
+
+        print(f"Orchestrator initialized for location: {self.location}")
+        print(f"RTSP Stream: {self.rtsp_stream}")
+
     def cleanup_redis(self):
         """Flush Redis streams and clean up"""
         print("Cleaning up Redis streams...")
@@ -32,7 +53,7 @@ class SentinelOrchestrator:
             
             # Recreate consumer groups
             consumer_groups = {
-                VEHICLE_JOBS_STREAM: ["ocr_workers", "colour_workers", "logo_workers"],
+                VEHICLE_JOBS_STREAM: ["ocr_workers", "color_workers", "logo_workers"],
                 VEHICLE_RESULTS_STREAM: ["aggregator"],
                 VEHICLE_ACK_STREAM: ["ingest"]
             }
@@ -54,25 +75,28 @@ class SentinelOrchestrator:
         
         return True
     
-    def log_reader(self, process, name, colour_code):
-        """Read process output and add coloured labels"""
+    def log_reader(self, process, name, color_code):
+        """Read process output and add colored labels"""
         try:
             for line in iter(process.stdout.readline, ''):
                 if line:
                     timestamp = time.strftime('%H:%M:%S')
-                    labeled_line = f"\033[{colour_code}m[{name:>12}]\033[0m \033[90m{timestamp}\033[0m | {line.rstrip()}"
+                    labeled_line = f"\033[{color_code}m[{name:>12}]\033[0m \033[90m{timestamp}\033[0m | {line.rstrip()}"
                     print(labeled_line)
         except Exception as e:
             print(f"\033[91m[{name:>12}]\033[0m Log reader error: {e}")
     
-    def start_process(self, name, command, colour_code, cwd=None):
-        """Start a process with coloured logging"""
+    def start_process(self, name, command, color_code, cwd=None, extra_env=None):
+        """Start a process with colored logging"""
         print(f"Starting {name}...")
         
         try:
             env = os.environ.copy()
             env['PYTHONPATH'] = f"{env.get('PYTHONPATH', '')}:."
             env['PYTHONUNBUFFERED'] = '1'  
+
+            if extra_env:
+                env.update(extra_env)
             
             process = subprocess.Popen(
                 command,
@@ -88,7 +112,7 @@ class SentinelOrchestrator:
             
             log_thread = threading.Thread(
                 target=self.log_reader, 
-                args=(process, name, colour_code),
+                args=(process, name, color_code),
                 daemon=True
             )
             log_thread.start()
@@ -114,12 +138,12 @@ class SentinelOrchestrator:
         
         workers = [
             ("OCR Worker", ["python3", "ocr/ocr_worker.py"], "92"),
-            ("Colour Worker", ["python3", "colour_detection/colour_worker.py"], "94"),
+            ("Color Worker", ["python3", "color_detection/color_worker.py"], "94"),
             ("Logo Worker", ["python3", "logo_detection/logo_worker.py"], "95"),
         ]
         
-        for name, command, colour in workers:
-            if not self.start_process(name, command, colour):
+        for name, command, color in workers:
+            if not self.start_process(name, command, color):
                 return False
             time.sleep(1)
         
@@ -128,7 +152,29 @@ class SentinelOrchestrator:
     def start_aggregator(self):
         """Start the aggregator + API"""
         print("\nStarting Aggregator + API...")
-        return self.start_process("Aggregator", ["python3", "aggregator/aggregator_api.py"], "93")
+
+        if not self.rtsp_stream:
+            raise Exception("RTSP_STREAM is missing in environment file (.env). Exiting.")
+
+        if not all([self.db_host, self.db_name, self.db_user, self.db_pass]):
+            raise Exception("Database credentials missing in .env. Exiting.")
+
+        aggregator_env = {
+            "LOCATION": self.location,
+            "RTSP_STREAM": self.rtsp_stream,
+            "DB_HOST": self.db_host,
+            "DB_PORT": self.db_port,
+            "DB_NAME": self.db_name,
+            "DB_USER": self.db_user,
+            "DB_PASS": self.db_pass
+        }
+
+        return self.start_process(
+            "Aggregator",
+            ["python3", "aggregator/aggregator.py"],
+            "93",
+            extra_env=aggregator_env
+        )
     
     def start_monitor(self):
         """Start the Redis monitor"""
@@ -136,18 +182,29 @@ class SentinelOrchestrator:
         return self.start_process("Monitor", ["python3", "db_redis/monitor_streams.py"], "96")
     
     def start_ingress(self):
-        """Start the ingress process"""
-        print("\nStarting Ingress...")
-        return self.start_process("Ingress", ["python3", "ingress/ingress.py"], "91")
-    
+        """Start the ingress process with location + RTSP stream"""
+        print(f"\nStarting Ingress for location: {self.location}...")
+        
+        ingress_env = {
+            "LOCATION": self.location,
+            "RTSP_STREAM": self.rtsp_stream
+        }
+        
+        return self.start_process(
+            "Ingress",
+            ["python3", "ingress/ingress.py"],
+            "91",
+            extra_env=ingress_env
+        )
+
     def monitor_system(self):
         """Monitor system health and show status"""
         print(f"\n{'='*80}")
         print("SENTINEL SYSTEM RUNNING - Press Ctrl+C to stop")
         print(f"{'='*80}")
         
-        status_colours = {
-            "OCR Worker": "92", "Colour Worker": "94", "Logo Worker": "95",
+        status_colors = {
+            "OCR Worker": "92", "Color Worker": "94", "Logo Worker": "95",
             "Aggregator": "93", "Monitor": "96", "Ingress": "91"
         }
         
@@ -165,9 +222,9 @@ class SentinelOrchestrator:
                 
                 status_line = f"\033[90m[STATUS]\033[0m {alive_count}/{total_count} processes: "
                 for name, process in self.processes.items():
-                    colour = status_colours.get(name, "37")
+                    color = status_colors.get(name, "37")
                     if process.poll() is None:
-                        status_line += f"\033[{colour}m●\033[0m "
+                        status_line += f"\033[{color}m●\033[0m "
                     else:
                         status_line += f"\033[91m●\033[0m "
                 
@@ -186,7 +243,7 @@ class SentinelOrchestrator:
         print(f"\n{'='*50}")
         print("Stopping all processes...")
 
-        shutdown_order = ["Ingress", "Monitor", "Aggregator", "Logo Worker", "Colour Worker", "OCR Worker"]
+        shutdown_order = ["Ingress", "Monitor", "Aggregator", "Logo Worker", "Color Worker", "OCR Worker"]
 
         for name in shutdown_order:
             process = self.processes.get(name)
@@ -233,7 +290,9 @@ class SentinelOrchestrator:
         """Main orchestrator flow"""
         print("SENTINEL SYSTEM ORCHESTRATOR")
         print("=" * 80)
-        
+        print(f"Location: {self.location}")
+        print(f"RTSP Stream: {self.rtsp_stream}")
+
         if not self.cleanup_redis():
             print("Redis cleanup failed. Exiting.")
             return False
