@@ -69,6 +69,23 @@ class ResultAggregator:
         self.pending_jobs = defaultdict(dict)  # job_id -> {worker: result}
         self.r = get_redis_connection()
 
+    def construct_keyframe_url(self, vehicle_id, location):
+        """Construct keyframe URL from vehicle_id and location"""
+        try:
+            # Extract date from vehicle_id: uuid_YYYYMMDD_HHMMSS_type_location
+            parts = vehicle_id.split('_')
+            if len(parts) >= 2:
+                date_part = parts[1]  
+                formatted_date = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}"
+                
+                # Construct URL: http://localhost:8000/static/LOCATION/DATE/VEHICLE_ID.jpg
+                keyframe_url = f"http://localhost:8000/static/{location}/{formatted_date}/{vehicle_id}.jpg"
+                return keyframe_url
+            return None
+        except Exception as e:
+            print(f"Error constructing keyframe URL for {vehicle_id}: {e}")
+            return None
+
     def parse_color_result(self, result):
         """Parse color result format: 'color_name|#hex_code'"""
         if '|' in result:
@@ -82,7 +99,7 @@ class ResultAggregator:
         try:
             parts = vehicle_id.split('_')
             if len(parts) >= 4:
-                location_parts = parts[3:]  # Everything after vehicle type
+                location_parts = parts[4:]  # Everything after vehicle type
                 return '_'.join(location_parts)
             return "UNKNOWN"
         except:
@@ -130,7 +147,6 @@ class ResultAggregator:
                         job_id = fields.get("job_id")
                         worker = fields.get("worker")
                         result = fields.get("result")
-                        frame_url = fields.get("frame_url")  
                         vehicle_id = fields.get("vehicle_id")
 
                         print(f"Received result: {job_id} from {worker} -> {result}")
@@ -138,7 +154,7 @@ class ResultAggregator:
                         if job_id not in self.pending_jobs:
                             location = fields.get("location", self.extract_location_from_vehicle_id(vehicle_id))
 
-                            keyframe_url = f"http://localhost:8000/{frame_url}" if frame_url else None
+                            keyframe_url = self.construct_keyframe_url(vehicle_id, location)
                         
                             self.pending_jobs[job_id] = {
                                 "results": {},
@@ -175,6 +191,7 @@ class ResultAggregator:
                             }
 
                             self.save_to_database(job_data)
+                            print(f"  Keyframe URL: {keyframe_url}")
                             print(f"Saved {job_id} to database: vehicle_id: {stored_vehicle_id}")
 
                             self.r.xadd(VEHICLE_ACK_STREAM, {
