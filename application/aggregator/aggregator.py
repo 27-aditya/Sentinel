@@ -82,7 +82,8 @@ class ResultAggregator:
         try:
             parts = vehicle_id.split('_')
             if len(parts) >= 4:
-                return parts[-1]
+                location_parts = parts[3:]  # Everything after vehicle type
+                return '_'.join(location_parts)
             return "UNKNOWN"
         except:
             return "UNKNOWN"
@@ -157,6 +158,7 @@ class ResultAggregator:
                             results = self.pending_jobs[job_id]["results"]
                             stored_vehicle_id = self.pending_jobs[job_id]["vehicle_id"]
                             location = self.pending_jobs[job_id]["location"]
+                            keyframe_url = self.pending_jobs[job_id]["keyframe_url"]  
 
                             color_result = results.get("color", "unknown|#000000")
                             color_name, color_hex = self.parse_color_result(color_result)
@@ -173,7 +175,7 @@ class ResultAggregator:
                             }
 
                             self.save_to_database(job_data)
-                            print(f"Saved {job_id} to database: {color_name} ({color_hex}) - vehicle_id: {stored_vehicle_id}")
+                            print(f"Saved {job_id} to database: vehicle_id: {stored_vehicle_id}")
 
                             self.r.xadd(VEHICLE_ACK_STREAM, {
                                 "job_id": job_id,
