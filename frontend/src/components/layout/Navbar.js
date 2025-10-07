@@ -14,17 +14,7 @@ export default function Navbar() {
 
   return (
     <div className="relative">
-      <nav className="fixed top-0 left-0 w-full h-16 bg-gray-50 text-foreground flex items-center justify-between px-8 md:px-16 z-50 overflow-hidden">
-
-        {/* Background Image */}
-        <div className="absolute inset-0 z-0">
-          <Image 
-            src="/hexagonal-bg.jpg" 
-            alt="Background" 
-            fill
-            className="object-cover opacity-30"
-          />
-        </div>
+      <nav className="w-full h-16 bg-gray-100 text-foreground flex items-center justify-between px-8 md:px-16 z-50 border-b border-black">
     
         {/* Sidebar toggle - only visible on mobile */}
         <button onClick={() => setOpenSidebar(!openSidebar)} className="md:hidden">
@@ -32,7 +22,7 @@ export default function Navbar() {
         </button>
 
         {/* Logo on the right */}
-        <div className="ml-auto relative z-10">
+        <div className="ml-auto">
           <Image 
             src="/nitc_logo_icon.svg"
             alt="NITC Logo"
@@ -44,7 +34,7 @@ export default function Navbar() {
 
         {/* Mobile Sidebar */}
         {openSidebar && (
-          <div className="absolute top-16 left-0 w-full bg-white border-b border-gray-300 shadow-lg md:hidden">
+          <div className="absolute top-16 left-0 w-full bg-white border-b border-gray-300 shadow-lg md:hidden z-10">
             <ul className="flex flex-col p-4 gap-3">
               <li className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm text-gray-800">Dashboard</li>
               <li className="cursor-pointer hover:bg-gray-100 p-2 rounded text-sm text-gray-800">Live Monitoring</li>

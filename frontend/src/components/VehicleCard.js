@@ -9,46 +9,45 @@ export default function VehicleCard({ vehicle, isSelected, onSelect }){
         isSelected 
           ? 'border-gray-500 bg-gray-100' 
           : 'border-gray-300 hover:border-gray-500'
-      } bg-white font-mono`}
+      } bg-white`}
     >
       
         <div className="absolute top-4 left-4">
-          <span className="text-[11px] font-bold text-gray-800">#{vehicle.sNo}</span>
+          <span className="text-[14px] font-bold text-black">#{vehicle.sNo}</span>
         </div>
 
         <div className="flex flex-col items-start justify-center w-24 p-2 md:ml-6 ml-6 gap-1">
-          <div className="text-[11px] font-semibold text-gray-700 text-left">License Plate</div>
+          <div className="text-[14px] font-semibold text-black text-left">License Plate</div>
           {vehicle.licensePlateImage ? (
             <Image 
               src={vehicle.licensePlateImage} 
               alt={`License plate ${vehicle.licensePlate}`}
               width={80}
               height={30}
-              className="border border-gray-400 rounded bg-gray-50 p-1"
             />
           ) : (
-            <div className="text-[11px] text-gray-600 text-left">{vehicle.licensePlate}</div>
+            <div className="text-[14px] text-black text-left">{vehicle.licensePlate}</div>
           )}
         </div>
 
         <div className="flex flex-col items-start justify-center w-24 p-2 gap-1">
-          <div className="text-[11px] font-semibold text-gray-700 text-left">Registration No</div>
-          <div className="text-[11px] text-gray-900 text-left">{vehicle.regNumber}</div>
+          <div className="text-[14px] font-semibold text-black text-left">Registration No</div>
+          <div className="text-[14px] text-black text-left">{vehicle.regNumber}</div>
         </div>
         
         <div className="flex flex-col items-start justify-center w-24 p-2 gap-1">
-          <span className="font-semibold text-[11px] text-gray-700 text-left">Colour</span>
-          <span className="text-[11px] text-gray-900 text-left">{vehicle.color}</span>
+          <span className="font-semibold text-[14px] text-black text-left">Colour</span>
+          <span className="text-[14px] text-black text-left">{vehicle.color}</span>
         </div>
         
         <div className="flex flex-col items-start justify-center w-24 p-2 gap-1">
-          <span className="font-semibold text-[11px] text-gray-700 text-left">Timestamp</span>
-          <span className="text-[11px] text-gray-900 text-left">{vehicle.timeStamp}</span>
+          <span className="font-semibold text-[14px] text-black text-left">Timestamp</span>
+          <span className="text-[14px] text-black text-left">{vehicle.timeStamp}</span>
         </div>
 
         <div className="flex flex-col items-start justify-center w-24 p-2 gap-1">
-          <span className="font-semibold text-[11px] text-gray-700 text-left">Camera Location</span>
-          <span className="text-[11px] text-gray-900 break-words text-left">{vehicle.cameraLocation}</span>
+          <span className="font-semibold text-[14px] text-black text-left">Camera Location</span>
+          <span className="text-[14px] text-black break-words text-left">{vehicle.cameraLocation}</span>
         </div>
         
 
