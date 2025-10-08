@@ -11,7 +11,7 @@ export default function Home() {
   const [selectedVehicle, setSelectedVehicle] = useState(vehicleData.vehicles[0]);
 
   return (
-    <div className="bg-grey-50 min-h-screen px-auto md:px-12 flex md:flex-row flex-col pt-4 pb-4 gap-4"> 
+    <div className="bg-grey-100 min-h-screen px-auto md:px-12 flex md:flex-row flex-col pt-4 pb-4 gap-4"> 
 
       {/* vehicle views */}
       <div className="flex bg-white p-4 md:flex-3 flex-col min-w-0">
@@ -44,21 +44,8 @@ export default function Home() {
       </div> 
 
       {/* Detailed information */}
-      <div className="w-full md:w-[30%] md:h-screen overflow-y-auto p-4 md:p-2 relative overflow-hidden">
-        {/* Background Image */}
-        <div className="absolute inset-0 z-0">
-          <Image 
-            src="/hexagonal-bg.jpg" 
-            alt="Background" 
-            fill
-            className="object-cover"
-          />
-        </div>
-        
-        {/* Content Container */}
-        <div className="relative z-10">
-          <DetailedInfo vehicle={selectedVehicle} />
-        </div>
+      <div className="w-full md:w-[30%] md:h-screen overflow-y-auto p-4 md:p-2">
+        <DetailedInfo vehicle={selectedVehicle} />
       </div>
 
     </div>

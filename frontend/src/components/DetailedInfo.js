@@ -3,7 +3,7 @@ import Image from "next/image";
 export default function DetailedInfo({ vehicle }) {
   return (
     <div className="h-full bg-white overflow-y-auto">
-      <div className="border border-gray-300 rounded-lg p-6">
+      <div className="border border-gray-300 rounded-sm p-6">
         
         {/* Transaction Details */}
         <div className="mb-6">
@@ -13,38 +13,38 @@ export default function DetailedInfo({ vehicle }) {
           
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-[13px] font-semibold text-black">Time</span>
-              <span className="text-[13px] text-black">{vehicle?.timeStamp || "2025-08-08 17:50:02"}</span>
+              <span className="text-[14px] font-semibold text-black">Time</span>
+              <span className="text-[14px] text-black">{vehicle?.timeStamp || "2025-08-08 17:50:02"}</span>
             </div>
             
             <div className="flex justify-between">
-              <span className="text-[13px] font-semibold text-black">Camera</span>
-              <span className="text-[13px] text-black">{vehicle?.cameraLocation || "ELATHUR TO KKD"}</span>
+              <span className="text-[14px] font-semibold text-black">Camera</span>
+              <span className="text-[14px] text-black">{vehicle?.cameraLocation || "ELATHUR TO KKD"}</span>
             </div>
             
             <div className="flex justify-between">
-              <span className="text-[13px] font-semibold text-black">Junction</span>
-              <span className="text-[13px] text-black">ELATHUR_JN</span>
+              <span className="text-[14px] font-semibold text-black">Junction</span>
+              <span className="text-[14px] text-black">ELATHUR_JN</span>
             </div>
             
             <div className="flex justify-between">
-              <span className="text-[13px] font-semibold text-black">Project</span>
-              <span className="text-[13px] text-black">KOZHIKODE</span>
+              <span className="text-[14px] font-semibold text-black">Project</span>
+              <span className="text-[14px] text-black">KOZHIKODE</span>
             </div>
             
             <div className="flex justify-between">
-              <span className="text-[13px] font-semibold text-black">GPS</span>
-              <span className="text-[13px] text-black">11.352214, 75.740565</span>
+              <span className="text-[14px] font-semibold text-black">GPS</span>
+              <span className="text-[14px] text-black">11.352214, 75.740565</span>
             </div>
             
             {/* <div className="flex justify-between">
-              <span className="text-[13px] font-semibold text-black">Violation ID</span>
-              <span className="text-[13px] text-black">P08C180-2025080815188</span>
+              <span className="text-[14px] font-semibold text-black">Violation ID</span>
+              <span className="text-[14px] text-black">P08C180-2025080815188</span>
             </div> */}
             
             <div className="flex justify-between">
-              <span className="text-[13px] font-semibold text-black">Status</span>
-              <span className="text-[13px] text-black">{vehicle?.status || "New"}</span>
+              <span className="text-[14px] font-semibold text-black">Status</span>
+              <span className="text-[14px] text-black">{vehicle?.status || "New"}</span>
             </div>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function DetailedInfo({ vehicle }) {
 
         {/* Vehicle Number Plate Image */}
         <div className="mb-6">
-          <h3 className="text-[15px] font-bold text-black mb-4 border-b border-gray-300 pb-3">
+          <h3 className="text-[14px] font-bold text-black mb-4 border-b border-gray-300 pb-3">
             Vehicle Number Plate Image
           </h3>
           
@@ -95,7 +95,7 @@ export default function DetailedInfo({ vehicle }) {
               className="border border-gray-300 rounded"
             />
           ) : (
-            <div className="w-full h-20 border border-gray-300 rounded flex items-center justify-center text-[13px] text-black">
+            <div className="w-full h-20 border border-gray-300 rounded flex items-center justify-center text-[14px] text-black">
               No image available
             </div>
           )}
@@ -103,16 +103,11 @@ export default function DetailedInfo({ vehicle }) {
 
         {/* Vehicle Registration Number */}
         <div>
-          <h3 className="text-[15px] font-bold text-black mb-4 border-b border-gray-300 pb-3">
+          <h3 className="text-[14px] font-bold text-black mb-4 border-b border-gray-300 pb-3">
             Vehicle Registration Number
           </h3>
           
-          <input 
-            type="text"
-            value={vehicle?.regNumber || "KL71J3583"}
-            readOnly
-            className="w-full border border-gray-300 rounded p-3 text-[13px] text-black bg-gray-50"
-          />
+          <span className="text-[16px] text-black">{vehicle?.regNumber || "KL71J3583"}</span>
         </div>
 
       </div>
