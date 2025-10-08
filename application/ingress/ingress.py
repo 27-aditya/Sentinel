@@ -113,9 +113,11 @@ FRAME_HEIGHT = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 print(f"Connected to RTSP stream: {FRAME_WIDTH}x{FRAME_HEIGHT}")
 
 # Define keyframe trigger zone
-CENTER_LINE_Y = 500
-ZONE_EXPANSION = 250
-TRIGGER_ZONE = (0, CENTER_LINE_Y - ZONE_EXPANSION, FRAME_WIDTH, CENTER_LINE_Y + ZONE_EXPANSION)
+ZONE_X1 = 0
+ZONE_Y1 = 200
+ZONE_X2 = 1500
+ZONE_Y2 = 800
+TRIGGER_ZONE = (ZONE_X1, ZONE_Y1, ZONE_X2, ZONE_Y2)
 
 def publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_id):
     """Publish job with organized file paths"""
