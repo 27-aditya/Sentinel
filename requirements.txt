@@ -1,0 +1,17 @@
+ultralytics
+opencv-python
+lap
+easyocr
+scikit-learn
+numpy
+
+redis
+fastapi
+uvicorn[standard]
+psycopg2-binary
+Jinja2
+webcolors
+
+
+python-dotenv
+psutil
