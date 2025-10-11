@@ -119,3 +119,5 @@ export default function VehicleCard({ vehicle, isSelected, onSelect }) {
   );
 }
 
+
+
