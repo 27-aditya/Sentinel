@@ -1,57 +1,78 @@
 import Image from "next/image";
 
-export default function VehicleCard({ vehicle, isSelected, onSelect }){ 
+export default function VehicleCard({ vehicle, isSelected, onSelect }) {
   return (
-
     <div 
       onClick={onSelect}
-      className={`relative flex flex-wrap item-center justify-between md:gap-2 border p-4 cursor-pointer transition-all duration-300 ease-in-out ${
+      className={`flex flex-wrap item-center justify-between md:gap-2 border p-4 cursor-pointer transition-all duration-300 ease-in-out ${
         isSelected 
-          ? 'border-gray-500 bg-gray-100' 
-          : 'border-gray-300 hover:border-gray-500'
+          ? "border-gray-500 bg-gray-100"
+          : "border-gray-300 hover:border-gray-500"
       } bg-white`}
     >
       
-        <div className="absolute top-4 left-4">
-          <span className="text-[14px] font-bold text-black">#{vehicle.sNo}</span>
+      <div className="flex flex-col items-start justify-center flex-1 p-2 gap-1">
+        <div className="text-[14px] font-semibold text-black text-left">
+          Plate Image
         </div>
-
-        <div className="flex flex-col items-start justify-center w-24 p-2 md:ml-6 ml-6 gap-1">
-          <div className="text-[14px] font-semibold text-black text-left">License Plate</div>
-          {vehicle.licensePlateImage ? (
+        {vehicle.plate_url && vehicle.vehicle_number && vehicle.vehicle_number !== "N/A" ? (
             <Image 
-              src={vehicle.licensePlateImage} 
-              alt={`License plate ${vehicle.licensePlate}`}
-              width={80}
-              height={30}
+            src={vehicle.plate_url}
+            alt="License Plate"
+            width={120}
+            height={40}
             />
           ) : (
-            <div className="text-[14px] text-black text-left">{vehicle.licensePlate}</div>
+          <div className="text-[14px] text-black text-left">N/A</div>
           )}
         </div>
 
-        <div className="flex flex-col items-start justify-center w-24 p-2 gap-1">
-          <div className="text-[14px] font-semibold text-black text-left">Registration No</div>
-          <div className="text-[14px] text-black text-left">{vehicle.regNumber}</div>
+      <div className="flex flex-col items-start justify-center flex-1 p-2 gap-1">
+        <div className="text-[14px] font-semibold text-black text-left">
+          Registration Number
+        </div>
+        <div className="text-[14px] text-black text-left">
+          {vehicle.vehicle_number || "N/A"}
+        </div>
         </div>
         
-        <div className="flex flex-col items-start justify-center w-24 p-2 gap-1">
-          <span className="font-semibold text-[14px] text-black text-left">Colour</span>
-          <span className="text-[14px] text-black text-left">{vehicle.color}</span>
+      <div className="flex flex-col items-start justify-center flex-1 p-2 gap-1">
+        <div className="text-[14px] font-semibold text-black text-left">
+          Vehicle Type
+        </div>
+        <div className="text-[14px] text-black text-left capitalize">
+          {vehicle.vehicle_type || "N/A"}
+        </div>
         </div>
         
-        <div className="flex flex-col items-start justify-center w-24 p-2 gap-1">
-          <span className="font-semibold text-[14px] text-black text-left">Timestamp</span>
-          <span className="text-[14px] text-black text-left">{vehicle.timeStamp}</span>
-        </div>
+      <div className="flex flex-col items-start justify-center flex-1 p-2 gap-1">
+        <span className="font-semibold text-[14px] text-black text-left">
+          Colour
+        </span>
+        <span className="text-[14px] text-left" style={{ color: vehicle.color_hex || '#000' }}>
+          {vehicle.color || "N/A"}
+        </span>
+      </div>
 
-        <div className="flex flex-col items-start justify-center w-24 p-2 gap-1">
-          <span className="font-semibold text-[14px] text-black text-left">Camera Location</span>
-          <span className="text-[14px] text-black break-words text-left">{vehicle.cameraLocation}</span>
-        </div>
-        
+      <div className="flex flex-col items-start justify-center flex-1 p-2 gap-1">
+        <span className="font-semibold text-[14px] text-black text-left">
+          Timestamp
+        </span>
+        <span className="text-[14px] text-black text-left">
+          {new Date(vehicle.timestamp).toLocaleString()}
+        </span>
+      </div>
 
-        {/* Commented out feaures well add later */}
+      <div className="flex flex-col items-start justify-center flex-1 p-2 gap-1">
+        <span className="font-semibold text-[14px] text-black text-left">
+          Camera Location
+        </span>
+        <span className="text-[14px] text-black break-words text-left">
+          {vehicle.location || "N/A"}
+        </span>
+      </div>
+
+      {/* Commented out features well add later */}
 
         {/* <div className="flex flex-col w-24 p-2">
           <span className="font-semibold text-xs text-gray-700">Violation Type</span>
@@ -94,12 +115,7 @@ export default function VehicleCard({ vehicle, isSelected, onSelect }){
             </div>
           )}
         </div> */}
-
-        {/* <div className="flex flex-col w-24 p-2">
-          <span className="font-semibold text-xs text-gray-700">Vehicle Type</span>
-          <span className="text-xs text-gray-900">{vehicle.vehicleType}</span>
-        </div> */}
-
     </div>
   );
 }
+
