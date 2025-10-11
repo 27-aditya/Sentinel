@@ -60,6 +60,7 @@ def create_tables():
         vehicle_id VARCHAR(100) UNIQUE NOT NULL,
         vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('car', 'motorcycle', 'bus', 'truck')),
         keyframe_url VARCHAR(500),
+        plate_url VARCHAR(500),
         color VARCHAR(50),
         color_hex VARCHAR(7),
         vehicle_number VARCHAR(20),
