@@ -1,10 +1,8 @@
 import re
 import time
-import random
 import signal
-import sys
 import threading
-import easyocr 
+from rapidocr import RapidOCR
 import numpy as np
 import cv2
 
@@ -19,40 +17,17 @@ def handle_shutdown(signum, frame):
 signal.signal(signal.SIGINT, handle_shutdown)
 signal.signal(signal.SIGTERM, handle_shutdown)
 
-reader = easyocr.Reader(['en'], gpu=False) 
-print("EasyOCR reader initialized.")
-
-def format_indian_plate(text: str) -> str:
-    """Formats a raw string to a standard Indian number plate format using regex."""
-    
-    # Pattern for modern plates: XX99XX9999 or XX99X9999
-    modern_pattern = re.compile(r'^([A-Z]{2})(\d{2})([A-Z]{1,2})(\d{1,4})$')
-    match = modern_pattern.match(text)
-    if match:
-        return f"{match.group(1)} {match.group(2)} {match.group(3)} {match.group(4)}"
-        
-    # Pattern for BH series plates: 99BH9999XX
-    bh_pattern = re.compile(r'^(\d{2})(BH)(\d{4})([A-Z]{1,2})$')
-    match = bh_pattern.match(text)
-    if match:
-        return f"{match.group(1)} {match.group(2)} {match.group(3)} {match.group(4)}"
-
-    # Pattern for older plates: XXX9999
-    old_pattern = re.compile(r'^([A-Z]{3})(\d{4})$')
-    match = old_pattern.match(text)
-    if match:
-        return f"{match.group(1)} {match.group(2)}"
-        
-    return text 
+# Replaced EasyOCR with RapidOCR
+reader = RapidOCR()
+print("RapidOCR reader initialized.")
 
 
 def process_ocr(frame_path, plate_path):
-    """Actual OCR model, needs better accuracy, using easyocr for now"""
-    
-    # If no plate path, return N/A
-    if not plate_path or plate_path == "None" or not os.path.exists(plate_path):
-        print(f"OCR Info: No valid plate image ('{plate_path}'). Returning N/A.")
-        return "N/A"
+    """Actual OCR model, now using RapidOCR without formatting"""
+
+    if not plate_path or not os.path.exists(plate_path):
+        print(f"OCR Error: Plate path '{plate_path}' is invalid or does not exist.")
+        return None
 
     try:
         plate_image = cv2.imread(plate_path)
@@ -68,31 +43,31 @@ def process_ocr(frame_path, plate_path):
 
         # --- Image Processing Pipeline ---
         gray_image = cv2.cvtColor(plate_image, cv2.COLOR_BGR2GRAY)
-        
+
         # Resize image 
         width = int(gray_image.shape[1] * scale_factor)
         height = int(gray_image.shape[0] * scale_factor)
         resized_image = cv2.resize(gray_image, (width, height), interpolation=cv2.INTER_CUBIC)
-        
+
         # Sharpening filter
         kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
         sharpened_image = cv2.filter2D(resized_image, -1, kernel)
-        
-        results = reader.readtext(sharpened_image)
-        
+
+        # RapidOCR returns (result, elapse)
+        results, _ = reader(sharpened_image)
+
         if not results:
-            print("OCR Info: EasyOCR found no text. Returning N/A.")
+            print("OCR Info: RapidOCR found no text.")
             return "N/A"
-            
-        # --- Post-processing and Validation ---
+
+        # Extract text from RapidOCR result tuples
         raw_text = "".join([res[1] for res in results])
         cleaned_text = re.sub(r'[^A-Z0-9]', '', raw_text).strip()
-        
-        # Check length and format
+
+        # Check length only (no formatting)
         if 0 < len(cleaned_text) <= 10:
-            formatted_plate = format_indian_plate(cleaned_text)
-            print(f"OCR Success: Found plate '{formatted_plate}' from {os.path.basename(plate_path)}")
-            return formatted_plate
+            print(f"OCR Success: Found plate '{cleaned_text}' from {os.path.basename(plate_path)}")
+            return cleaned_text
         else:
             print(f"OCR Validation Failed: Raw text '{cleaned_text}' failed length check. Returning N/A.")
             return "N/A"
