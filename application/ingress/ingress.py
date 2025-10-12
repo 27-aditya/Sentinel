@@ -8,7 +8,7 @@ from ultralytics import YOLO
 from db_redis.sentinel_redis_config import *
 
 model = YOLO("yolov8s.pt")
-detection_model = YOLO("license_plate_detector.pt")
+plate_model = YOLO("license_plate_detector.pt")
 
 # Get configuration from environment
 LOCATION = os.getenv("LOCATION", "DEFAULT_LOCATION")
@@ -40,24 +40,31 @@ def ensure_storage_structure():
     print(f"Storage structure initialized: {LOCATION_PATH}")
 
 def get_date_folder():
-    """Get or create today's date folder"""
+    """Get or create today's date folder with keyframes and plates subdirectories"""
     today = datetime.date.today().strftime("%Y-%m-%d")
     date_folder = LOCATION_PATH / today
-    date_folder.mkdir(exist_ok=True)
+    keyframes_folder = date_folder / "keyframes"
+    plates_folder = date_folder / "plates"
+    
+    # Create all directories
+    keyframes_folder.mkdir(parents=True, exist_ok=True)
+    plates_folder.mkdir(parents=True, exist_ok=True)
+    
     return date_folder, today
 
 def save_keyframe_organized(vehicle_crop, vehicle_id):
-    """Save keyframe in organized structure: /aggregator/web/static/LOCATION/DATE/VEHICLE_ID.jpg"""
+    """Save keyframe in organized structure: /aggregator/web/static/LOCATION/DATE/keyframes/VEHICLE_ID.jpg"""
     try:
         date_folder, date_str = get_date_folder()
+        keyframes_folder = date_folder / "keyframes"
         filename = f"{vehicle_id}.jpg"
-        file_path = date_folder / filename
+        file_path = keyframes_folder / filename
         
         # Save the image
         success = cv2.imwrite(str(file_path), vehicle_crop)
         
         if success:
-            relative_path = f"static/{LOCATION}/{date_str}/{filename}"
+            relative_path = f"static/{LOCATION}/{date_str}/keyframes/{filename}"
             print(f"Saved keyframe: {relative_path}")
             print(f"Full path: {file_path}")
             return str(file_path), relative_path
@@ -69,30 +76,47 @@ def save_keyframe_organized(vehicle_crop, vehicle_id):
         print(f"Error saving keyframe for {vehicle_id}: {e}")
         return None, None
 
+
 def detect_and_save_plate(vehicle_crop, vehicle_id):
-    """Save cropped license plate image in organized structure: /aggregator/web/static/LOCATION/DATE/VEHICLE_ID_plate.jpg"""
+    """Detect license plate in vehicle crop and save it in plates subdirectory"""
+    
+    # If plate model is not loaded, return None, None
+    if plate_model is None:
+        return None, None
+    
     try:
-        plate_results = plate_model(vehicle_crop, verbose=False)
+        results = plate_model(vehicle_crop, verbose=False)
         
-        if len(plate_results[0].boxes) > 0:
-            plate_box = plate_results[0].boxes.xyxy.cpu().numpy().astype(int)[0]
-            px1, py1, px2, py2 = plate_box
-            plate_crop = vehicle_crop[py1:py2, px1:px2]
+        if len(results) > 0 and len(results[0].boxes) > 0:
+            # Get the first detected plate
+            box = results[0].boxes[0]
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
             
-            if plate_crop.size > 0:
-                date_folder, date_str = get_date_folder()
-                plate_filename = f"{vehicle_id}_plate.jpg"
-                plate_file_path = date_folder / plate_filename
-                
-                # Save the plate image
-                success = cv2.imwrite(str(plate_file_path), plate_crop)
-                if success:
-                    relative_plate_path = f"static/{LOCATION}/{date_str}/{plate_filename}"
-                    print(f"  - Saved plate: {relative_plate_path}")
-                    return str(plate_file_path), relative_plate_path
-                    
+            # Crop plate from vehicle image
+            plate_crop = vehicle_crop[y1:y2, x1:x2]
+            
+            # Save plate image in plates subdirectory
+            plate_filename = f"{vehicle_id}_plate.jpg"
+            
+            # Get organized path for the vehicle (reuse existing date folder)
+            date_folder, date_str = get_date_folder()
+            plates_folder = date_folder / "plates"
+            
+            plate_path = plates_folder / plate_filename
+            cv2.imwrite(str(plate_path), plate_crop)
+            
+            # Construct relative path for URL
+            plate_relative_path = f"static/{LOCATION}/{date_str}/plates/{plate_filename}"
+            
+            print(f"  - Saved plate: {plate_relative_path}")
+            return str(plate_path), plate_relative_path
+        else:
+            # No plate detected, return a tuple of Nones
+            return None, None
+            
     except Exception as e:
-        print(f"  - Error during plate detection for {vehicle_id}: {e}")
+        print(f"Error during plate detection for {vehicle_id}: {e}")
+        # On error, return a tuple of Nones
         return None, None
 
 
@@ -119,7 +143,7 @@ ZONE_X2 = 1500
 ZONE_Y2 = 800
 TRIGGER_ZONE = (ZONE_X1, ZONE_Y1, ZONE_X2, ZONE_Y2)
 
-def publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_id):
+def publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_id, plate_path=None, plate_relative_path=None):
     """Publish job with organized file paths"""
     timestamp = datetime.datetime.utcnow()
     job_id = f"{vehicle_type}_{track_id}_{vehicle_id.split('_')[0]}"  
@@ -129,9 +153,9 @@ def publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_i
         "vehicle_id": vehicle_id, 
         "vehicle_type": vehicle_type,
         "frame_path": organized_path,   
-        "plate_path": plate_path,   
+        "plate_path": plate_path if plate_path else "None",   
         "frame_url": relative_path,  
-        "plate_url": plate_relative_path,
+        "plate_url": plate_relative_path if plate_relative_path else "None",
         "timestamp": timestamp.isoformat(),
         "location": LOCATION
     }
@@ -206,7 +230,7 @@ while True:
                         organized_path, relative_path = save_keyframe_organized(vehicle_crop, vehicle_id)
                         
                         if organized_path and relative_path:
-                            # Publish job with organized paths
+                            # Detect and save plate if model is availabl
                             plate_path, plate_relative_path = detect_and_save_plate(vehicle_crop, vehicle_id)
                             publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_id, plate_path, plate_relative_path)
                         else:

@@ -1,6 +1,17 @@
 import Image from "next/image";
 
 export default function DetailedInfo({ vehicle }) {
+
+  if (!vehicle) {
+    return (
+      <div className="h-full bg-white overflow-y-auto">
+        <div className="border border-gray-300 rounded-sm p-6 text-center text-gray-500">
+          Select a vehicle from the list to see its details.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full bg-white overflow-y-auto">
       <div className="border border-gray-300 rounded-sm p-6">
@@ -14,12 +25,14 @@ export default function DetailedInfo({ vehicle }) {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-[14px] font-semibold text-black">Time</span>
-              <span className="text-[14px] text-black">{vehicle?.timeStamp || "2025-08-08 17:50:02"}</span>
+              {/* MODIFIED: Use 'timestamp' and format it */}
+              <span className="text-[14px] text-black">{new Date(vehicle.timestamp).toLocaleString()}</span>
             </div>
             
             <div className="flex justify-between">
               <span className="text-[14px] font-semibold text-black">Camera</span>
-              <span className="text-[14px] text-black">{vehicle?.cameraLocation || "ELATHUR TO KKD"}</span>
+              {/* MODIFIED: Use 'location' from backend data */}
+              <span className="text-[14px] text-black">{vehicle.location || "N/A"}</span>
             </div>
             
             <div className="flex justify-between">
@@ -44,62 +57,23 @@ export default function DetailedInfo({ vehicle }) {
             
             <div className="flex justify-between">
               <span className="text-[14px] font-semibold text-black">Status</span>
-              <span className="text-[14px] text-black">{vehicle?.status || "New"}</span>
+               {/* MODIFIED: Use 'status' from backend data */}
+              <span className="text-[14px] text-black capitalize">{vehicle.status || "New"}</span>
             </div>
           </div>
         </div>
 
-        {/* Other Details */}
-        {/* <div className="mb-4">
-          <h3 className="text-sm font-bold text-gray-800 mb-3 border-b border-gray-300 pb-2">
-            Other Details
-          </h3>
-          
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <input 
-                type="checkbox" 
-                id="showReference" 
-                className="w-3 h-3"
-              />
-              <label htmlFor="showReference" className="text-xs text-gray-700">
-                Show Reference Image
-              </label>
-            </div>
-            
-            <div>
-              <span className="text-xs font-semibold text-gray-700 block mb-1">
-                Challan Remarks
-              </span>
-              <textarea 
-                className="w-full border border-gray-300 rounded p-2 text-xs text-gray-900"
-                rows="3"
-                placeholder="Enter remarks..."
-              />
-            </div>
-          </div>
-        </div> */}
-
-        {/* Vehicle Number Plate Image */}
-        <div className="mb-6">
-          <h3 className="text-[14px] font-bold text-black mb-4 border-b border-gray-300 pb-3">
-            Vehicle Number Plate Image
-          </h3>
-          
-          {vehicle?.licensePlateImage ? (
+        {vehicle.plate_url && vehicle.vehicle_number && vehicle.vehicle_number !== "N/A" ? (
+          <div className="mb-4 flex items-center">
             <Image 
-              src={vehicle.licensePlateImage}
+              src={vehicle.plate_url}
               alt="License Plate"
-              width={250}
-              height={75}
-              className="border border-gray-300 rounded"
+              width={240}
+              height={80}
+              className="rounded border border-gray-200"
             />
-          ) : (
-            <div className="w-full h-20 border border-gray-300 rounded flex items-center justify-center text-[14px] text-black">
-              No image available
-            </div>
-          )}
         </div>
+        ) : null}
 
         {/* Vehicle Registration Number */}
         <div>
@@ -107,10 +81,13 @@ export default function DetailedInfo({ vehicle }) {
             Vehicle Registration Number
           </h3>
           
-          <span className="text-[16px] text-black">{vehicle?.regNumber || "KL71J3583"}</span>
+          {/* MODIFIED: Use 'vehicle_number' from backend data */}
+          <span className="text-[16px] text-black">{vehicle.vehicle_number || "N/A"}</span>
         </div>
 
       </div>
     </div>
   );
 }
+
+

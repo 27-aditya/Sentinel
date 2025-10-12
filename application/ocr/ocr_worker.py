@@ -4,6 +4,7 @@ import signal
 import threading
 from rapidocr import RapidOCR
 import numpy as np
+import cv2
 
 from db_redis.sentinel_redis_config import *
 
@@ -30,9 +31,12 @@ def process_ocr(frame_path, plate_path):
 
     try:
         plate_image = cv2.imread(plate_path)
+
+        # actual line of code commented out 
+        
         if plate_image is None:
-            print(f"OCR Error: Failed to read image from {plate_path}")
-            return None
+            print(f"OCR Error: Failed to read image from {plate_path}. Returning N/A.")
+            return "N/A"
 
         # --- Tuned Parameters ---
         scale_factor = 3.0
@@ -54,7 +58,7 @@ def process_ocr(frame_path, plate_path):
 
         if not results:
             print("OCR Info: RapidOCR found no text.")
-            return None
+            return "N/A"
 
         # Extract text from RapidOCR result tuples
         raw_text = "".join([res[1] for res in results])
@@ -65,12 +69,12 @@ def process_ocr(frame_path, plate_path):
             print(f"OCR Success: Found plate '{cleaned_text}' from {os.path.basename(plate_path)}")
             return cleaned_text
         else:
-            print(f"OCR Validation Failed: Raw text '{cleaned_text}' failed length check.")
-            return None
+            print(f"OCR Validation Failed: Raw text '{cleaned_text}' failed length check. Returning N/A.")
+            return "N/A"
 
     except Exception as e:
         print(f"An unexpected error occurred during OCR process for {plate_path}: {e}")
-        return None
+        return "N/A"
 
 
 def ocr_worker():
