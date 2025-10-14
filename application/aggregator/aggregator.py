@@ -148,6 +148,31 @@ class ResultAggregator:
         except:
             return "UNKNOWN"
 
+    def extract_timestamp_from_vehicle_id(self, vehicle_id):
+        """Extract timestamp from vehicle_id format: uuid_YYYYMMDD_HHMMSS_vehicle_type_LOCATION"""
+        try:
+            parts = vehicle_id.split('_')
+            if len(parts) >= 3:
+                # parts[1] = YYYYMMDD, parts[2] = HHMMSS
+                date_part = parts[1]  # YYYYMMDD
+                time_part = parts[2]  # HHMMSS
+                
+                # Parse into datetime components
+                year = int(date_part[0:4])
+                month = int(date_part[4:6])
+                day = int(date_part[6:8])
+                hour = int(time_part[0:2])
+                minute = int(time_part[2:4])
+                second = int(time_part[4:6])
+                
+                # Create datetime object and convert to ISO format
+                dt = datetime.datetime(year, month, day, hour, minute, second)
+                return dt.isoformat()
+            return None
+        except Exception as e:
+            print(f"Error extracting timestamp from vehicle_id {vehicle_id}: {e}")
+            return None
+
     def save_to_database(self, job_data):
         """Save completed job to database"""
         conn = get_db_connection()
@@ -155,8 +180,8 @@ class ResultAggregator:
 
         cursor.execute("""
             INSERT INTO vehicles (vehicle_id, vehicle_type, keyframe_url, plate_url,
-                                  color, color_hex, vehicle_number, model, location, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                  color, color_hex, vehicle_number, model, location, timestamp, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             job_data.get("vehicle_id"),
             job_data.get("vehicle_type"),
@@ -167,6 +192,7 @@ class ResultAggregator:
             job_data.get("vehicle_number", ""),
             job_data.get("model", ""),
             job_data.get("location", "UNKNOWN"),
+            job_data.get("timestamp"), 
             "completed"
         ))
 
@@ -199,12 +225,17 @@ class ResultAggregator:
 
                         if job_id not in self.pending_jobs:
                             location = fields.get("location", self.extract_location_from_vehicle_id(vehicle_id))
+                            
+                            # extracting from vehicle_id
+                            timestamp = self.extract_timestamp_from_vehicle_id(vehicle_id)
+                            
                             keyframe_url = self.construct_keyframe_url(vehicle_id, location)
                             plate_url = self.construct_plate_url(vehicle_id, location)
                             self.pending_jobs[job_id] = {
                                 "results": {},
                                 "vehicle_id": vehicle_id,
                                 "location": location,
+                                "timestamp": timestamp,
                                 "keyframe_url": keyframe_url,
                                 "plate_url": plate_url
                             }
@@ -220,6 +251,7 @@ class ResultAggregator:
                             results = self.pending_jobs[job_id]["results"]
                             stored_vehicle_id = self.pending_jobs[job_id]["vehicle_id"]
                             location = self.pending_jobs[job_id]["location"]
+                            timestamp = self.pending_jobs[job_id]["timestamp"]
                             keyframe_url = self.pending_jobs[job_id]["keyframe_url"]
                             plate_url = self.pending_jobs[job_id]["plate_url"]
 
@@ -235,15 +267,15 @@ class ResultAggregator:
                                 "color_hex": color_hex,
                                 "vehicle_number": results.get("ocr", ""),
                                 "model": results.get("logo", ""),
-                                "location": location
+                                "location": location,
+                                "timestamp": timestamp
                             }
 
                             saved_data = self.save_to_database(job_data)
                             print(f"Saved {job_id} to database: vehicle_id: {stored_vehicle_id}")
 
-                            # --- NEW: Bridge to the async world to broadcast the update ---
+                            # broadcast the update
                             # This safely schedules the broadcast on the main event loop.
-                            # Time complexity: O(1) to schedule the task.
                             asyncio.run_coroutine_threadsafe(
                                 self.manager.broadcast(json.dumps(saved_data, default=str)),
                                 self.loop
