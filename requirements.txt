@@ -4,6 +4,7 @@ lap
 easyocr
 scikit-learn
 numpy
+rapidocr-onnxruntime
 
 redis
 fastapi
