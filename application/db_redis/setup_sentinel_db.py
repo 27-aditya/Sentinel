@@ -48,26 +48,26 @@ def create_database_and_user():
     return True
 
 def create_tables():
-    """Create the required tables"""
+    """Create the required tables and assign ownership to sentinel_user"""
     print("Creating tables...")
-    
+
     # SQL commands
     sql_commands = [
         # Create vehicles table
         """
         CREATE TABLE IF NOT EXISTS vehicles (
-        id SERIAL PRIMARY KEY,
-        vehicle_id VARCHAR(100) UNIQUE NOT NULL,
-        vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('car', 'motorcycle', 'bus', 'truck')),
-        keyframe_url VARCHAR(500),
-        plate_url VARCHAR(500),
-        color VARCHAR(50),
-        color_hex VARCHAR(7),
-        vehicle_number VARCHAR(20),
-        model VARCHAR(100),
-        location VARCHAR(100),
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
+            id SERIAL PRIMARY KEY,
+            vehicle_id VARCHAR(100) UNIQUE NOT NULL,
+            vehicle_type VARCHAR(20) NOT NULL CHECK (vehicle_type IN ('car', 'motorcycle', 'bus', 'truck')),
+            keyframe_url VARCHAR(500),
+            plate_url VARCHAR(500),
+            color VARCHAR(50),
+            color_hex VARCHAR(7),
+            vehicle_number VARCHAR(20),
+            model VARCHAR(100),
+            location VARCHAR(100),
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
         );
         """,
 
@@ -85,11 +85,15 @@ def create_tables():
             retry_count INTEGER DEFAULT 0
         );
         """,
-        
-        # Grant permissions
+
+        # Grant privileges to sentinel_user
         f"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {DB_USER};",
         f"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {DB_USER};",
-        
+
+        # Transfer ownership
+        f"ALTER TABLE vehicles OWNER TO {DB_USER};",
+        f"ALTER TABLE processing_jobs OWNER TO {DB_USER};",
+
         # Create indexes
         "CREATE INDEX IF NOT EXISTS idx_vehicles_vehicle_id ON vehicles(vehicle_id);",
         "CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);",
@@ -98,12 +102,12 @@ def create_tables():
         "CREATE INDEX IF NOT EXISTS idx_processing_jobs_vehicle_id ON processing_jobs(vehicle_id);",
         "CREATE INDEX IF NOT EXISTS idx_processing_jobs_status ON processing_jobs(status);"
     ]
-    
-    # Execute each SQL command
+
+    # Execute each SQL command as postgres
     for sql_cmd in sql_commands:
         run_as_postgres(['psql', '-d', DB_NAME, '-c', sql_cmd])
-    
-    print("Tables and indexes created successfully")
+
+    print("Tables, ownership, and indexes set up successfully!")
     return True
 
 def test_connection():
