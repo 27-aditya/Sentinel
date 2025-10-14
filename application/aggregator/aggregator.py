@@ -17,6 +17,9 @@ from fastapi.templating import Jinja2Templates
 
 from db_redis.sentinel_redis_config import *
 
+# Global ready flag
+SYSTEM_READY = False
+
 # Location
 LOCATION = os.getenv("LOCATION", "DEFAULT_LOCATION")
 print("Location: " + LOCATION)
@@ -299,10 +302,23 @@ class ResultAggregator:
 # FastAPI Setup
 app = FastAPI(title="Sentinel Vehicle API")
 
-# --- NEW: WebSocket Endpoint ---
+# WebSocket Endpoint
 @app.websocket("/ws/updates")
 async def websocket_endpoint(websocket: WebSocket):
+    # Wait until system is ready before accepting connections
+    max_wait = 60  # Maximum 60 seconds wait
+    waited = 0
+    while not SYSTEM_READY and waited < max_wait:
+        await asyncio.sleep(0.5)
+        waited += 0.5
+    
+    if not SYSTEM_READY:
+        await websocket.close(code=1008, reason="System not ready")
+        print("WebSocket connection rejected: System not ready")
+        return
+    
     await manager.connect(websocket)
+    print("WebSocket client connected successfully")
     try:
         while True:
             # Keep connection alive
@@ -311,6 +327,23 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
         print("A client disconnected.")
 
+# Endpoint to signal system readiness
+@app.post("/internal/system-ready")
+async def mark_system_ready():
+    """Internal endpoint called by orchestrator when ingress is ready"""
+    global SYSTEM_READY
+    SYSTEM_READY = True
+    print("✓ System marked as READY - WebSocket connections now allowed")
+    return {"status": "ready"}
+
+# Endpoint to check system status
+@app.get("/api/system/status")
+async def get_system_status():
+    """Check if system is ready for WebSocket connections"""
+    return {
+        "ready": SYSTEM_READY,
+        "websocket_enabled": SYSTEM_READY
+    }
 
 # Database Routes
 @app.get("/api/vehicles")

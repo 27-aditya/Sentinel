@@ -5,6 +5,7 @@ import sys
 import os
 import threading
 import queue
+import requests
 import psutil
 from db_redis.sentinel_redis_config import *
 from dotenv import load_dotenv
@@ -190,12 +191,28 @@ class SentinelOrchestrator:
             "RTSP_STREAM": self.rtsp_stream
         }
         
-        return self.start_process(
-            "Ingress",
-            ["python3", "ingress/ingress.py"],
-            "91",
-            extra_env=ingress_env
-        )
+        success = self.start_process(
+        "Ingress",
+        ["python3", "ingress/ingress.py"],
+        "91",
+        extra_env=ingress_env
+    )
+    
+        if success:
+            # Wait a moment for ingress to fully initialize
+            time.sleep(2)
+            
+            # Signal the aggregator that system is ready
+            try:
+                response = requests.post("http://localhost:8000/internal/system-ready", timeout=5)
+                if response.status_code == 200:
+                    print("✓ Signaled aggregator: System READY for WebSocket connections")
+                else:
+                    print(f"⚠️ Failed to signal aggregator readiness: {response.status_code}")
+            except Exception as e:
+                print(f"⚠️ Could not signal aggregator readiness: {e}")
+        
+        return success
 
     def monitor_system(self):
         """Monitor system health and show status"""

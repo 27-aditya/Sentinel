@@ -4,11 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import VehicleCard from "@/components/VehicleCard/VehicleCard";
 import DetailedInfo from "@/components/DetailedInfoCard/DetailedInfoCard";
-import vehicleData from "@/data/vehicleData.json";
 import Loader from "@/components/Loader/Loader";
 
 export default function Home() {
-  const [vehicles, setVehicles] = useState(() => vehicleData.vehicles || []);
+  const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [showLoader, setShowLoader] = useState(true);

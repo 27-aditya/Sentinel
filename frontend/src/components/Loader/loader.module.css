@@ -11,7 +11,7 @@
   position: absolute;
   width: 100%;
   height: 100%;
-  background-color: rgb(209, 213, 219); /* gray-300 - lighter gray */
+  background-color: rgb(209, 213, 219);
   z-index: 1;
 }
 
@@ -59,13 +59,33 @@
   pointer-events: none;
 }
 
+.connectingText {
+  position: absolute;
+  top: 65%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  opacity: 0;
+  z-index: 4;
+  user-select: none;
+  pointer-events: none;
+}
+
+.connectingText span {
+  display: inline-block;
+  min-width: 2rem;
+  text-align: left;
+}
+
 .bar {
   flex: 1;
   width: 100%;
   background: rgb(9, 9, 9);
   padding: 1.5em 0;
   margin-top: -1px;
-  /* clip-path: polygon(0% 0%, 0% 0%, 0% 100%, 0% 100%); */
 }
 
 .bar5 {
@@ -109,10 +129,18 @@
   .sentinelText {
     font-size: 4rem;
   }
+
+  .connectingText {
+    font-size: 1.5rem;
+  }
 }
 
 @media (max-width: 640px) {
   .sentinelText {
     font-size: 3rem;
+  }
+
+  .connectingText {
+    font-size: 1.2rem;
   }
 }

@@ -11,7 +11,15 @@ export default function Loader({ isConnected, onAnimationComplete }) {
   const containerRef = useRef(null);
   const grayLayerRef = useRef(null);
   const textRef = useRef(null);
+  const connectingRef = useRef(null);
   const timelineRef = useRef(null);
+  const flickerTimelineRef = useRef(null);
+  const isConnectedRef = useRef(isConnected); // Track connection state in ref
+
+  // Update ref when isConnected changes
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
 
   useGSAP(
     () => {
@@ -26,7 +34,7 @@ export default function Loader({ isConnected, onAnimationComplete }) {
         { clipPath: "polygon(0% 0%, 0% 0%, 0% 100%, 0% 100%)" },
         {
           clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)",
-          duration: 1,
+          duration: 1.5,
           ease: "power4.inOut",
           stagger: { amount: 0.5, from: "random" },
         }
@@ -49,7 +57,7 @@ export default function Loader({ isConnected, onAnimationComplete }) {
       // 5. Marquee scroll in
       tl.to(`.${styles.marquee}`, {
         left: "0vw",
-        duration: 4,
+        duration: 3,
         ease: "power4.inOut",
         onComplete: () => {
           gsap.to(`.${styles.marquee}`, {
@@ -57,7 +65,33 @@ export default function Loader({ isConnected, onAnimationComplete }) {
             repeat: 4,
             yoyo: true,
             duration: 0.1,
-            onComplete: () => gsap.to(`.${styles.marquee}`, { opacity: 1 }),
+            onComplete: () => {
+              gsap.to(`.${styles.marquee}`, { opacity: 1 });
+
+              // Only show connecting text if NOT connected
+              if (!isConnectedRef.current) {
+                // START CONNECTING TEXT ANIMATION AFTER MARQUEE COMPLETES
+                gsap.to(connectingRef.current, {
+                  opacity: 0.8,
+                  duration: 0.5,
+                  onComplete: () => {
+                    // Then start the breathing loop
+                    const flickerTl = gsap.timeline({ repeat: -1 });
+                    flickerTl.to(connectingRef.current, {
+                      opacity: 0.3,
+                      duration: 1,
+                      ease: "power1.inOut",
+                    });
+                    flickerTl.to(connectingRef.current, {
+                      opacity: 0.8,
+                      duration: 1,
+                      ease: "power1.inOut",
+                    });
+                    flickerTimelineRef.current = flickerTl;
+                  },
+                });
+              }
+            },
           });
         },
       });
@@ -65,14 +99,29 @@ export default function Loader({ isConnected, onAnimationComplete }) {
       // 6. PAUSE HERE AFTER INTRO - wait for WebSocket connection
       tl.addLabel("waitForConnection");
       tl.call(() => {
-        // Only pause if not connected yet
-        if (!isConnected) {
+        // Check the ref (which has the most current value)
+        if (!isConnectedRef.current) {
           tl.pause();
+        } else {
+          // If already connected, kill the flicker animation (if it exists)
+          if (flickerTimelineRef.current) {
+            flickerTimelineRef.current.kill();
+          }
         }
       });
 
-      // 7. Once connected, pause for 2 seconds
-      tl.to({}, { duration: 2 });
+      // 7. Once connected, fade out connecting text quickly then pause 1 second
+      tl.to(connectingRef.current, {
+        opacity: 0,
+        duration: 0.3,
+        onStart: () => {
+          // Kill flicker animation when we start fading out
+          if (flickerTimelineRef.current) {
+            flickerTimelineRef.current.kill();
+          }
+        },
+      });
+      tl.to({}, { duration: 1 });
 
       // 8. Gray layer fade out (revealing content underneath)
       tl.to(grayLayerRef.current, { opacity: 0, duration: 0.5 });
@@ -102,7 +151,7 @@ export default function Loader({ isConnected, onAnimationComplete }) {
         `.${styles.marquee}`,
         {
           left: "-100vw",
-          duration: 4,
+          duration: 3,
           ease: "power4.inOut",
         },
         "<"
@@ -138,6 +187,15 @@ export default function Loader({ isConnected, onAnimationComplete }) {
     }
   }, [isConnected]);
 
+  // Cleanup flicker animation on unmount
+  useEffect(() => {
+    return () => {
+      if (flickerTimelineRef.current) {
+        flickerTimelineRef.current.kill();
+      }
+    };
+  }, []);
+
   return (
     <div ref={containerRef} className={styles.container}>
       <div ref={grayLayerRef} className={styles.grayLayer}></div>
@@ -148,10 +206,18 @@ export default function Loader({ isConnected, onAnimationComplete }) {
           <img src="/images/frame.png" alt="" />
           <img src="/images/frame.png" alt="" />
           <img src="/images/frame.png" alt="" />
+
+          {/* SENTINEL text */}
           <div ref={textRef} className={styles.sentinelText}>
             SENTINEL
           </div>
+
+          {/* Connecting text with breathing flicker */}
+          <div ref={connectingRef} className={styles.connectingText}>
+            Connecting...
+          </div>
         </div>
+
         <div className={`${styles.bar} ${styles.bar1}`}>
           <div className={styles.marquee}>
             {Array(20)
