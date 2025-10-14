@@ -70,7 +70,7 @@ export default function Home() {
         </div>
         
         {/* Vehicle pass-by details */}
-        <div className="flex-1 pt-4 pr-2 overflow-y-auto space-y-2 min-h-0">
+        <div className="h-[250px] pt-4 pr-2 overflow-y-auto space-y-2 min-h-0">
           {/* MODIFIED: Map over the live 'vehicles' state instead of static data */}
           {vehicles.map((vehicle) => (
             <VehicleCard 
