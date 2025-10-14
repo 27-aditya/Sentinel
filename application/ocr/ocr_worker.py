@@ -2,7 +2,7 @@ import re
 import time
 import signal
 import threading
-from rapidocr import RapidOCR
+from rapidocr_onnxruntime import RapidOCR
 import numpy as np
 import cv2
 
