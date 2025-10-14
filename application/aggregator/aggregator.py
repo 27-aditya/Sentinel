@@ -101,33 +101,25 @@ class ResultAggregator:
     def construct_keyframe_url(self, vehicle_id, location):
         """Construct keyframe URL from vehicle_id and location"""
         try:
-            # Extract date from vehicle_id: uuid_YYYYMMDD_HHMMSS_type_location
-            parts = vehicle_id.split('_')
-            if len(parts) >= 2:
-                date_part = parts[1]
-                formatted_date = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}"
-                
-                # Construct URL: http://localhost:8000/static/LOCATION/DATE/keyframes/VEHICLE_ID.jpg
-                keyframe_url = f"http://localhost:8000/static/{location}/{formatted_date}/keyframes/{vehicle_id}.jpg"
-                return keyframe_url
-            return None
+            # Use current date
+            current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+            
+            # Construct URL: http://localhost:8000/static/LOCATION/CURRENT_DATE/keyframes/VEHICLE_ID.jpg
+            keyframe_url = f"http://localhost:8000/static/{location}/{current_date}/keyframes/{vehicle_id}.jpg"
+            return keyframe_url
         except Exception as e:
             print(f"Error constructing keyframe URL for {vehicle_id}: {e}")
             return None
 
+
     def construct_plate_url(self, vehicle_id, location):
-        """Construct plate image URL from vehicle_id and location"""
-        try:
-            # Extract date from vehicle_id: uuid_YYYYMMDD_HHMMSS_type_location
-            parts = vehicle_id.split('_')
-            if len(parts) >= 2:
-                date_part = parts[1]
-                formatted_date = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}"
-                
-                # Construct URL: http://localhost:8000/static/LOCATION/DATE/plates/VEHICLE_ID_plate.jpg
-                plate_url = f"http://localhost:8000/static/{location}/{formatted_date}/plates/{vehicle_id}_plate.jpg"
-                return plate_url
-            return None
+        """Construct plate image URL from vehicle_id and location using CURRENT date"""
+        try: 
+            current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+            
+            # Construct URL: http://localhost:8000/static/LOCATION/CURRENT_DATE/plates/VEHICLE_ID_plate.jpg
+            plate_url = f"http://localhost:8000/static/{location}/{current_date}/plates/{vehicle_id}_plate.jpg"
+            return plate_url
         except Exception as e:
             print(f"Error constructing plate URL for {vehicle_id}: {e}")
             return None
