@@ -1,8 +1,11 @@
-import subprocess
+import os
+# Set timezone to IST
+os.environ["TZ"] = "Asia/Kolkata"
 import time
+time.tzset()
+import subprocess
 import signal
 import sys
-import os
 import threading
 import queue
 import requests

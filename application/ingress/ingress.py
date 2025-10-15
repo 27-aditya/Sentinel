@@ -6,6 +6,9 @@ import datetime
 from pathlib import Path
 from ultralytics import YOLO
 from db_redis.sentinel_redis_config import *
+import pytz
+
+IST = pytz.timezone('Asia/Kolkata')
 
 model = YOLO("yolov8s.pt")
 plate_model = YOLO("license_plate_detector.pt")
@@ -145,7 +148,7 @@ TRIGGER_ZONE = (ZONE_X1, ZONE_Y1, ZONE_X2, ZONE_Y2)
 
 def publish_job(vehicle_type, organized_path, relative_path, track_id, vehicle_id, plate_path=None, plate_relative_path=None):
     """Publish job with organized file paths"""
-    timestamp = datetime.datetime.utcnow()
+    timestamp = datetime.datetime.now(IST)
     job_id = f"{vehicle_type}_{track_id}_{vehicle_id.split('_')[0]}"  
     
     payload = {
@@ -216,7 +219,7 @@ while True:
                     vehicle_type = model.names[class_id]
                     
                     # Generate vehicle ID with timestamp, type, and location
-                    timestamp = datetime.datetime.utcnow()
+                    timestamp = datetime.datetime.now(IST)
                     timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
                     uuid_part = uuid.uuid4().hex[:8]
                     vehicle_id = f"{uuid_part}_{timestamp_str}_{vehicle_type}_{LOCATION}"

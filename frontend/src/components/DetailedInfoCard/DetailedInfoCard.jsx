@@ -4,7 +4,7 @@ export default function DetailedInfoCard({ vehicle }) {
   if (!vehicle) {
     return (
       <div className="h-full bg-white overflow-y-auto">
-        <div className="border border-gray-300 rounded-sm p-6 text-center text-gray-500">
+        <div className="= rounded-sm p-6 text-center text-gray-500">
           Select a vehicle from the list to see its details.
         </div>
       </div>
@@ -12,68 +12,67 @@ export default function DetailedInfoCard({ vehicle }) {
   }
 
   return (
-    <div className="h-full bg-white overflow-y-auto">
-      <div className="border border-gray-300 rounded-sm p-6">
-        {/* Transaction Details */}
-        <div className="mb-6">
-          <h3 className="text-[15px] font-bold text-black mb-4 border-b border-gray-300 pb-3">
-            Transaction Details
+    <div className="h-full bg-white overflow-y-auto rounded-lg shadow min-h-0 min-w-0 ">
+      <div className="=  p-6">
+        {/* Vehicle Details */}
+        <div className="mb-4">
+          <h3 className="text-xl font-bold text-black mb-4 border-b border-gray-300 pb-1">
+            Vehicle Details
           </h3>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-[14px] font-semibold text-black">Time</span>
-              {/* MODIFIED: Use 'timestamp' and format it */}
-              <span className="text-[14px] text-black">
+              <span className="text-md font-semibold text-black">Time</span>
+              {/*Use 'timestamp' and format it */}
+              <span className="text-md text-black">
                 {new Date(vehicle.timestamp).toLocaleString()}
               </span>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-[14px] font-semibold text-black">
-                Camera
+              <span className="text-md font-semibold text-black">Type</span>
+              {/*Use 'location' from backend data */}
+              <span className="text-md text-black capitalize">
+                {vehicle.vehicle_type || "N/A"}
               </span>
-              {/* MODIFIED: Use 'location' from backend data */}
-              <span className="text-[14px] text-black">
+            </div>
+
+            {vehicle.color != "Unknown" && (
+              <div className="flex justify-between">
+                <span className="text-md font-semibold text-black">Colour</span>
+                <span className="text-md text-black capitalize">
+                  {vehicle.color}
+                </span>
+              </div>
+            )}
+
+            <div className="flex justify-between">
+              <span className="text-md font-semibold text-black">Camera</span>
+              {/*Use 'location' from backend data */}
+              <span className="text-md text-black">
                 {vehicle.location || "N/A"}
               </span>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-[14px] font-semibold text-black">
-                Junction
-              </span>
-              <span className="text-[14px] text-black">ELATHUR_JN</span>
+              <span className="text-md font-semibold text-black">Junction</span>
+              <span className="text-md text-black">ELATHUR_JN</span>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-[14px] font-semibold text-black">
-                Project
-              </span>
-              <span className="text-[14px] text-black">KOZHIKODE</span>
+              <span className="text-md font-semibold text-black">Project</span>
+              <span className="text-md text-black">KOZHIKODE</span>
             </div>
 
             <div className="flex justify-between">
-              <span className="text-[14px] font-semibold text-black">GPS</span>
-              <span className="text-[14px] text-black">
-                11.352214, 75.740565
-              </span>
+              <span className="text-md font-semibold text-black">GPS</span>
+              <span className="text-md text-black">11.352214, 75.740565</span>
             </div>
 
             {/* <div className="flex justify-between">
               <span className="text-[14px] font-semibold text-black">Violation ID</span>
               <span className="text-[14px] text-black">P08C180-2025080815188</span>
             </div> */}
-
-            <div className="flex justify-between">
-              <span className="text-[14px] font-semibold text-black">
-                Status
-              </span>
-              {/* MODIFIED: Use 'status' from backend data */}
-              <span className="text-[14px] text-black capitalize">
-                {vehicle.status || "New"}
-              </span>
-            </div>
           </div>
         </div>
 
@@ -97,7 +96,7 @@ export default function DetailedInfoCard({ vehicle }) {
             Vehicle Registration Number
           </h3>
 
-          {/* MODIFIED: Use 'vehicle_number' from backend data */}
+          {/*Use 'vehicle_number' from backend data */}
           <span className="text-[16px] text-black">
             {vehicle.vehicle_number || "N/A"}
           </span>
