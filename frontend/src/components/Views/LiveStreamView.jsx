@@ -103,7 +103,7 @@ export default function LiveStreamView({ formattedDate, formattedTime }) {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="bg-gray-100 px-6 pt-6 flex justify-between items-start">
+      <div className="bg-gray-200 px-6 pt-6 flex justify-between items-start">
         <h1 className="text-4xl font-semibold text-gray-900">
           Real Time Monitoring
         </h1>
@@ -116,7 +116,7 @@ export default function LiveStreamView({ formattedDate, formattedTime }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 bg-gray-100 md:px-12 p-6 pt-4">
+      <div className="flex-1 bg-gray-200 md:px-12 p-6 pt-4">
         <div
           className="bg-black rounded-lg overflow-hidden shadow relative cursor-pointer"
           onClick={handleClick}
@@ -182,17 +182,17 @@ export default function LiveStreamView({ formattedDate, formattedTime }) {
 
         {/* Stream Info Cards */}
         <div className="mt-4 grid grid-cols-3 gap-4">
-          <div className="bg-gray-800 rounded-lg p-4">
+          <div className="bg-gray-900 rounded-lg p-4">
             <p className="text-gray-400 text-sm">Status</p>
             <p className="text-white font-semibold">
               {isLoading ? "Loading..." : error ? "Error" : "Live"}
             </p>
           </div>
-          <div className="bg-gray-800 rounded-lg p-4">
+          <div className="bg-gray-900 rounded-lg p-4">
             <p className="text-gray-400 text-sm">Protocol</p>
             <p className="text-white font-semibold">HLS</p>
           </div>
-          <div className="bg-gray-800 rounded-lg p-4">
+          <div className="bg-gray-900 rounded-lg p-4">
             <p className="text-gray-400 text-sm">Latency</p>
             <p className="text-white font-semibold">~4-6s</p>
           </div>

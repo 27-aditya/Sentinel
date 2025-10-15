@@ -16,7 +16,7 @@ export default function Sidebar({ activeView, setActiveView }) {
   ];
 
   return (
-    <aside className="w-[200px] h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col py-8 fixed left-0 top-0 shadow-[4px_0_12px_rgba(0,0,0,0.08)] z-[1000]">
+    <aside className="w-[200px] h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col py-8 fixed left-0 top-0 z-[1000]">
       {/* Logo Section */}
       <div className="mx-auto pb-6 border-b border-black/8 mb-2">
         <h1 className="text-3xl font-black text-black tracking-[0.1em]">
