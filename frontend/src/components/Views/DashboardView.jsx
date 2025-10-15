@@ -2,6 +2,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRef, useEffect } from "react";
 import VehicleCard from "@/components/VehicleCard/VehicleCard";
 import DetailedInfo from "@/components/DetailedInfoCard/DetailedInfoCard";
 
@@ -9,11 +10,57 @@ export default function DashboardView({
   vehicles,
   selectedVehicle,
   setSelectedVehicle,
+  setVehicles,
   isConnected,
   isInitialDataLoaded,
   formattedDate,
   formattedTime,
+  autoSelectEnabled,
+  setAutoSelectEnabled,
 }) {
+  const scrollContainerRef = useRef(null);
+
+  // Handler to update vehicle in the list
+  const handleVehicleUpdate = (updatedVehicle) => {
+    setVehicles((prevVehicles) =>
+      prevVehicles.map((v) =>
+        v.vehicle_id === updatedVehicle.vehicle_id ? updatedVehicle : v
+      )
+    );
+
+    if (selectedVehicle?.vehicle_id === updatedVehicle.vehicle_id) {
+      setSelectedVehicle(updatedVehicle);
+    }
+  };
+
+  // Handle vehicle selection
+  const handleVehicleSelect = (vehicle) => {
+    setSelectedVehicle(vehicle);
+
+    // If clicking on the first vehicle, resume auto-select
+    if (vehicles.length > 0 && vehicle.vehicle_id === vehicles[0].vehicle_id) {
+      setAutoSelectEnabled(true);
+      console.log("✓ Auto-select resumed");
+    } else {
+      // Otherwise, disable auto-select (manual selection)
+      setAutoSelectEnabled(false);
+      console.log("✗ Auto-select disabled (manual selection)");
+    }
+  };
+
+  // Scroll to top and select newest vehicle
+  const handleScrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    if (vehicles.length > 0) {
+      setSelectedVehicle(vehicles[0]);
+      setAutoSelectEnabled(true);
+      console.log("✓ Scrolled to top & auto-select resumed");
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Dashboard Header */}
@@ -30,7 +77,7 @@ export default function DashboardView({
       {/* Dashboard Content */}
       <div className="flex-1 bg-gray-200 px-auto md:px-6 flex md:flex-row flex-col p-6 pt-4 gap-4 min-h-0 overflow-auto">
         {/* Vehicle views */}
-        <div className="flex flex-1 bg-white md:p-4 flex-col min-h-0 min-w-0 rounded-lg shadow">
+        <div className="flex flex-1 bg-white md:p-4 flex-col min-h-0 min-w-0 rounded-lg shadow relative">
           {/* Main Vehicle Image */}
           <div className="h-[400px] mb-4 md:min-h-0 flex items-center justify-center relative bg-black rounded">
             {selectedVehicle?.keyframe_url ? (
@@ -57,8 +104,11 @@ export default function DashboardView({
             )}
           </div>
 
-          {/* Vehicle pass-by list */}
-          <div className="h-[250px] pt-0 pr-2 overflow-y-auto space-y-2 min-h-0">
+          {/* Vehicle pass-by list with scroll container */}
+          <div
+            ref={scrollContainerRef}
+            className="h-[250px] pt-0 pr-2 overflow-y-auto space-y-2 min-h-0 relative"
+          >
             {!isInitialDataLoaded ? (
               <div className="text-center text-gray-500 py-8">
                 <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-gray-400 mx-auto mb-2"></div>
@@ -76,16 +126,49 @@ export default function DashboardView({
                   isSelected={
                     selectedVehicle?.vehicle_id === vehicle.vehicle_id
                   }
-                  onSelect={() => setSelectedVehicle(vehicle)}
+                  onSelect={() => handleVehicleSelect(vehicle)}
                 />
               ))
             )}
           </div>
+
+          {/* Scroll to Top Button - Bottom Right */}
+          {vehicles.length > 0 && (
+            <button
+              onClick={handleScrollToTop}
+              className="absolute bottom-6 right-6 w-12 h-12 bg-gray-900 hover:bg-gray-800 text-white rounded-full shadow-lg transition-all duration-300 flex items-center justify-center z-10 hover:scale-110"
+              title="Scroll to top & select newest"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 10l7-7m0 0l7 7m-7-7v18"
+                />
+              </svg>
+            </button>
+          )}
+
+          {/* Auto-select indicator (optional - for debugging) */}
+          {!autoSelectEnabled && (
+            <div className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full shadow">
+              Manual Mode
+            </div>
+          )}
         </div>
 
         {/* Detailed information panel */}
         <div className="w-full md:w-[30%] md:h-full overflow-y-auto">
-          <DetailedInfo vehicle={selectedVehicle} />
+          <DetailedInfo
+            vehicle={selectedVehicle}
+            onVehicleUpdate={handleVehicleUpdate}
+          />
         </div>
       </div>
     </div>

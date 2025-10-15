@@ -17,6 +17,7 @@ export default function Home() {
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
   const [formattedDate, setFormattedDate] = useState("");
   const [formattedTime, setFormattedTime] = useState("");
+  const [autoSelectEnabled, setAutoSelectEnabled] = useState(true); // NEW: Track auto-select state
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -50,7 +51,6 @@ export default function Home() {
   // Fetch initial data from API
   const fetchInitialVehicles = async () => {
     try {
-      // Add ?limit=500 query parameter
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/vehicles?limit=${MAX_VEHICLES}`
       );
@@ -63,7 +63,6 @@ export default function Home() {
 
       setVehicles(data);
 
-      // Set the first vehicle as selected if available
       if (data.length > 0) {
         setSelectedVehicle(data[0]);
       }
@@ -87,7 +86,7 @@ export default function Home() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log("WebSocket connected");
+        console.log("✓ WebSocket connected");
         setIsConnected(true);
         reconnectAttemptsRef.current = 0;
       };
@@ -101,10 +100,8 @@ export default function Home() {
 
         updateTimeoutRef.current = setTimeout(() => {
           setVehicles((prevVehicles) => {
-            // Add new vehicle at the start
             const updatedVehicles = [newVehicle, ...prevVehicles];
 
-            // Keep only the most recent MAX_VEHICLES (remove oldest)
             if (updatedVehicles.length > MAX_VEHICLES) {
               return updatedVehicles.slice(0, MAX_VEHICLES);
             }
@@ -112,7 +109,10 @@ export default function Home() {
             return updatedVehicles;
           });
 
-          setSelectedVehicle(newVehicle);
+          // Only auto-select if autoSelectEnabled is true
+          if (autoSelectEnabled) {
+            setSelectedVehicle(newVehicle);
+          }
         }, 500);
       };
 
@@ -198,8 +198,11 @@ export default function Home() {
             vehicles={vehicles}
             selectedVehicle={selectedVehicle}
             setSelectedVehicle={setSelectedVehicle}
+            setVehicles={setVehicles}
             isConnected={isConnected}
             isInitialDataLoaded={isInitialDataLoaded}
+            autoSelectEnabled={autoSelectEnabled}
+            setAutoSelectEnabled={setAutoSelectEnabled}
           />
         );
       case "live":
@@ -214,14 +217,10 @@ export default function Home() {
   return (
     <>
       <div className="flex h-screen">
-        {/* Sidebar - Fixed Left */}
         <Sidebar activeView={activeView} setActiveView={setActiveView} />
-
-        {/* Main Content Area - Right Side */}
         <main className="flex-1 ml-[200px] overflow-auto">{renderView()}</main>
       </div>
 
-      {/* Loader overlay - shows on top when needed */}
       {showLoader && (
         <Loader
           isConnected={isConnected}
