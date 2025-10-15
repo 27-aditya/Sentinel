@@ -215,16 +215,15 @@ export default function DetailedInfoCard({ vehicle, onVehicleUpdate }) {
           </div>
 
           {/* Plate Image - Fixed Height & Centered */}
-          <div className="flex items-center justify-center h-32 bg-white rounded border border-gray-200 mb-3">
+          <div className="relative flex items-center justify-center h-32 bg-white rounded border border-gray-200 mb-3 overflow-hidden">
             {vehicle.plate_url &&
             vehicle.vehicle_number &&
             vehicle.vehicle_number !== "N/A" ? (
               <Image
                 src={vehicle.plate_url}
                 alt="License Plate"
-                width={240}
-                height={80}
-                className="rounded object-contain"
+                fill
+                className="rounded object-contain p-2"
               />
             ) : (
               <span className="text-gray-400 text-sm">No plate image</span>
@@ -239,6 +238,10 @@ export default function DetailedInfoCard({ vehicle, onVehicleUpdate }) {
               setEditedPlateNumber(e.target.value.toUpperCase());
               setUpdateError(null);
               setSuccessMessage(null);
+              //  Notify parent that user is editing (only if on latest vehicle)
+              if (onPlateEditStart && newValue !== originalPlateNumber) {
+                onPlateEditStart();
+              }
             }}
             placeholder="e.g., KL11BM2325"
             className={`w-full px-3 py-2 border rounded mb-2 text-sm text-center font-semibold focus:outline-none focus:ring-2 ${

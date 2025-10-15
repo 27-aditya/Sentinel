@@ -33,6 +33,17 @@ export default function DashboardView({
     }
   };
 
+  // Handle plate edit start - disable auto-select if on latest vehicle
+  const handlePlateEditStart = () => {
+    // Only disable auto-select if currently viewing the latest vehicle
+    if (
+      vehicles.length > 0 &&
+      selectedVehicle?.vehicle_id === vehicles[0].vehicle_id
+    ) {
+      setAutoSelectEnabled(false);
+    }
+  };
+
   // Handle vehicle selection
   const handleVehicleSelect = (vehicle) => {
     setSelectedVehicle(vehicle);
@@ -40,11 +51,9 @@ export default function DashboardView({
     // If clicking on the first vehicle, resume auto-select
     if (vehicles.length > 0 && vehicle.vehicle_id === vehicles[0].vehicle_id) {
       setAutoSelectEnabled(true);
-      console.log("✓ Auto-select resumed");
     } else {
       // Otherwise, disable auto-select (manual selection)
       setAutoSelectEnabled(false);
-      console.log("✗ Auto-select disabled (manual selection)");
     }
   };
 
@@ -154,13 +163,6 @@ export default function DashboardView({
               </svg>
             </button>
           )}
-
-          {/* Auto-select indicator (optional - for debugging) */}
-          {!autoSelectEnabled && (
-            <div className="absolute top-2 right-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-full shadow">
-              Manual Mode
-            </div>
-          )}
         </div>
 
         {/* Detailed information panel */}
@@ -168,6 +170,7 @@ export default function DashboardView({
           <DetailedInfo
             vehicle={selectedVehicle}
             onVehicleUpdate={handleVehicleUpdate}
+            onPlateEditStart={handlePlateEditStart}
           />
         </div>
       </div>

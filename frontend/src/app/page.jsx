@@ -23,6 +23,12 @@ export default function Home() {
   const reconnectTimeoutRef = useRef(null);
   const updateTimeoutRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
+  const autoSelectEnabledRef = useRef(true);
+
+  // Sync ref with state
+  useEffect(() => {
+    autoSelectEnabledRef.current = autoSelectEnabled;
+  }, [autoSelectEnabled]);
 
   // Date Time Logic
   useEffect(() => {
@@ -98,6 +104,9 @@ export default function Home() {
           clearTimeout(updateTimeoutRef.current);
         }
 
+        // Capture auto-select state IMMEDIATELY (before setTimeout)
+        const shouldAutoSelect = autoSelectEnabledRef.current;
+
         updateTimeoutRef.current = setTimeout(() => {
           setVehicles((prevVehicles) => {
             const updatedVehicles = [newVehicle, ...prevVehicles];
@@ -109,9 +118,12 @@ export default function Home() {
             return updatedVehicles;
           });
 
-          // Only auto-select if autoSelectEnabled is true
-          if (autoSelectEnabled) {
+          // Use captured value
+          if (shouldAutoSelect) {
             setSelectedVehicle(newVehicle);
+            console.log("✓ Auto-selected new vehicle:", newVehicle.vehicle_id);
+          } else {
+            console.log("✗ Auto-select disabled, keeping current selection");
           }
         }, 500);
       };
