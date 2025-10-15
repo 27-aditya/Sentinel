@@ -25,7 +25,7 @@ export default function Sidebar({ activeView, setActiveView }) {
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 px-6 flex flex-col gap-2">
+      <nav className="flex-1 px-3 flex flex-col gap-2">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeView === item.view;
@@ -35,7 +35,7 @@ export default function Sidebar({ activeView, setActiveView }) {
               key={item.name}
               onClick={() => setActiveView(item.view)}
               className={`
-                flex items-center gap-4 px-1 py-2 rounded-xl
+                flex items-center gap-4 px-2 py-2 rounded-xl
                 text-base font-medium transition-all duration-200
                 w-full text-left
                 ${

@@ -2,7 +2,6 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
 import VehicleCard from "@/components/VehicleCard/VehicleCard";
 import DetailedInfo from "@/components/DetailedInfoCard/DetailedInfoCard";
 
@@ -11,27 +10,9 @@ export default function DashboardView({
   selectedVehicle,
   setSelectedVehicle,
   isConnected,
+  formattedDate,
+  formattedTime,
 }) {
-  const [dateTime, setDateTime] = useState(new Date());
-
-  useEffect(() => {
-    const interval = setInterval(() => setDateTime(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const formattedDate = dateTime.toLocaleDateString("en-IN", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-
-  const formattedTime = dateTime.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-
   return (
     <div className="h-full flex flex-col">
       {/* Dashboard Header */}

@@ -34,7 +34,7 @@ export default function Loader({ isConnected, onAnimationComplete }) {
         { clipPath: "polygon(0% 0%, 0% 0%, 0% 100%, 0% 100%)" },
         {
           clipPath: "polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)",
-          duration: 1.5,
+          duration: 1.2,
           ease: "power4.inOut",
           stagger: { amount: 0.5, from: "random" },
         }
@@ -57,7 +57,7 @@ export default function Loader({ isConnected, onAnimationComplete }) {
       // 5. Marquee scroll in
       tl.to(`.${styles.marquee}`, {
         left: "0vw",
-        duration: 3,
+        duration: 2.5,
         ease: "power4.inOut",
         onComplete: () => {
           gsap.to(`.${styles.marquee}`, {
@@ -151,7 +151,7 @@ export default function Loader({ isConnected, onAnimationComplete }) {
         `.${styles.marquee}`,
         {
           left: "-100vw",
-          duration: 3,
+          duration: 2,
           ease: "power4.inOut",
         },
         "<"

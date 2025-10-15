@@ -3,24 +3,49 @@
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Layout/Sidebar";
 import DashboardView from "@/components/Views/DashboardView";
+import LiveStreamView from "@/components/Views/LiveStreamView";
 import Loader from "@/components/Loader/Loader";
 
 export default function Home() {
-  // View state
   const [activeView, setActiveView] = useState("dashboard");
-
-  // WebSocket & Vehicle state
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [showLoader, setShowLoader] = useState(true);
+  const [dateTime, setDateTime] = useState(new Date());
+  const [formattedDate, setFormattedDate] = useState("");
+  const [formattedTime, setFormattedTime] = useState("");
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const updateTimeoutRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
 
-  // Reconnection configuration
+  // Date Time Logic
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      setFormattedDate(
+        now.toLocaleDateString("en-IN", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      );
+      setFormattedTime(
+        now.toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // WebSocket Logic
   const INITIAL_RECONNECT_DELAY = 2000;
   const MAX_RECONNECT_DELAY = 4000;
   const MAX_RECONNECT_ATTEMPTS = Infinity;
@@ -122,10 +147,12 @@ export default function Home() {
 
   // Render active view
   const renderView = () => {
+    const commonProps = { formattedDate, formattedTime };
     switch (activeView) {
       case "dashboard":
         return (
           <DashboardView
+            {...commonProps}
             vehicles={vehicles}
             selectedVehicle={selectedVehicle}
             setSelectedVehicle={setSelectedVehicle}
@@ -133,7 +160,7 @@ export default function Home() {
           />
         );
       case "live":
-        return <div className="p-8">Live Stream View (Coming Soon)</div>;
+        return <LiveStreamView {...commonProps} />;
       case "search":
         return <div className="p-8">Search View (Coming Soon)</div>;
       default:
