@@ -1,9 +1,6 @@
 // src/app/layout.js
-
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Layout/Navbar";
-import Sidebar from "@/components/Layout/Sidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "Sentinel",
-  description: "Sentinel Surveilence System",
+  description: "Sentinel Surveillance System",
 };
 
 export default function RootLayout({ children }) {
@@ -26,13 +23,7 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="h-screen flex">
-          <Sidebar />
-          <div className="flex flex-1 min-h-0 flex-col md:overflow-hidden">
-            <Navbar />
-            <main className="flex-1">{children}</main>
-          </div>
-        </div>
+        {children}
       </body>
     </html>
   );

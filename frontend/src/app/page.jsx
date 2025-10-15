@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import VehicleCard from "@/components/VehicleCard/VehicleCard";
-import DetailedInfo from "@/components/DetailedInfoCard/DetailedInfoCard";
+import Sidebar from "@/components/Layout/Sidebar";
+import DashboardView from "@/components/Views/DashboardView";
 import Loader from "@/components/Loader/Loader";
 
 export default function Home() {
+  // View state
+  const [activeView, setActiveView] = useState("dashboard");
+
+  // WebSocket & Vehicle state
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -117,42 +120,35 @@ export default function Home() {
     setShowLoader(false);
   };
 
+  // Render active view
+  const renderView = () => {
+    switch (activeView) {
+      case "dashboard":
+        return (
+          <DashboardView
+            vehicles={vehicles}
+            selectedVehicle={selectedVehicle}
+            setSelectedVehicle={setSelectedVehicle}
+            isConnected={isConnected}
+          />
+        );
+      case "live":
+        return <div className="p-8">Live Stream View (Coming Soon)</div>;
+      case "search":
+        return <div className="p-8">Search View (Coming Soon)</div>;
+      default:
+        return null;
+    }
+  };
+
   return (
     <>
-      {/* Main content - always rendered */}
-      <div className="h-full bg-grey-100 px-auto md:px-12 flex md:flex-row flex-col p-6 gap-4 min-h-0">
-        {/* vehicle views */}
-        <div className="flex flex-1 bg-white md:p-4 flex-col min-h-0 min-w-0">
-          <div className="h-[400px] p-4 mb-4 md:min-h-0 flex items-center justify-center relative">
-            {selectedVehicle?.keyframe_url ? (
-              <Image
-                src={selectedVehicle.keyframe_url}
-                alt={`Vehicle ${selectedVehicle.vehicle_number}`}
-                fill
-                className="rounded object-cover transition-opacity duration-500 ease-in-out"
-              />
-            ) : (
-              <div className="text-gray-500">Waiting for vehicle data...</div>
-            )}
-          </div>
+      <div className="flex h-screen">
+        {/* Sidebar - Fixed Left */}
+        <Sidebar activeView={activeView} setActiveView={setActiveView} />
 
-          {/* Vehicle pass-by details */}
-          <div className="h-[250px] pt-4 pr-2 overflow-y-auto space-y-2 min-h-0">
-            {vehicles.map((vehicle) => (
-              <VehicleCard
-                key={vehicle.vehicle_id}
-                vehicle={vehicle}
-                isSelected={selectedVehicle?.vehicle_id === vehicle.vehicle_id}
-                onSelect={() => setSelectedVehicle(vehicle)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Detailed information */}
-        <div className="w-full md:w-[30%] md:h-screen overflow-y-auto md:p-4">
-          <DetailedInfo vehicle={selectedVehicle} />
-        </div>
+        {/* Main Content Area - Right Side */}
+        <main className="flex-1 ml-[200px] overflow-auto">{renderView()}</main>
       </div>
 
       {/* Loader overlay - shows on top when needed */}

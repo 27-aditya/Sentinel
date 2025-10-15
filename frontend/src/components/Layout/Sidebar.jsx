@@ -1,17 +1,18 @@
-// components/Sidebar/Sidebar.jsx
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Video, Search, Settings } from "lucide-react";
-
-export default function Sidebar() {
-  const pathname = usePathname();
-
+import {
+  LayoutDashboard,
+  Video,
+  Search,
+  Settings,
+  Cctv,
+  Info,
+} from "lucide-react";
+export default function Sidebar({ activeView, setActiveView }) {
   const menuItems = [
-    { name: "Dashboard", icon: LayoutDashboard, href: "/" },
-    { name: "Live Monitoring", icon: Video, href: "/live" },
-    { name: "Search", icon: Search, href: "/search" },
+    { name: "Dashboard", icon: LayoutDashboard, view: "dashboard" },
+    { name: "Live View", icon: Cctv, view: "live" },
+    { name: "Search", icon: Search, view: "search" },
   ];
 
   return (
@@ -27,15 +28,16 @@ export default function Sidebar() {
       <nav className="flex-1 px-6 flex flex-col gap-2">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = activeView === item.view;
 
           return (
-            <Link
+            <button
               key={item.name}
-              href={item.href}
+              onClick={() => setActiveView(item.view)}
               className={`
-                flex items-center gap-4 px-5 py-4 rounded-xl
+                flex items-center gap-4 px-1 py-2 rounded-xl
                 text-base font-medium transition-all duration-200
+                w-full text-left
                 ${
                   isActive
                     ? "bg-white text-black font-semibold shadow-md"
@@ -45,20 +47,27 @@ export default function Sidebar() {
             >
               <Icon className="w-5 h-5" />
               <span>{item.name}</span>
-            </Link>
+            </button>
           );
         })}
       </nav>
 
       {/* Bottom Section - Settings */}
-      <div className="px-6 pt-6 border-t border-black/8 mt-auto">
-        <Link
-          href="/settings"
-          className="flex items-center gap-4 px-5 py-4 rounded-xl text-base font-medium text-gray-600 hover:bg-black/5 hover:text-gray-900 transition-all duration-200"
+      <div className="px-6 pt-3 border-t border-black/8 mt-auto">
+        <button
+          onClick={() => setActiveView("settings")}
+          className="flex items-center gap-4 px-1 py-3 rounded-xl text-base font-medium text-gray-600 hover:bg-black/5 hover:text-gray-900 transition-all duration-200 w-full text-left"
         >
           <Settings className="w-5 h-5" />
           <span>Settings</span>
-        </Link>
+        </button>
+        <button
+          onClick={() => setActiveView("settings")}
+          className="flex items-center gap-4 px-1 py-3 rounded-xl text-base font-medium text-gray-600 hover:bg-black/5 hover:text-gray-900 transition-all duration-200 w-full text-left"
+        >
+          <Info className="w-5 h-5" />
+          <span>About</span>
+        </button>
       </div>
     </aside>
   );
