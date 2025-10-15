@@ -10,6 +10,7 @@ export default function DashboardView({
   selectedVehicle,
   setSelectedVehicle,
   isConnected,
+  isInitialDataLoaded,
   formattedDate,
   formattedTime,
 }) {
@@ -43,15 +44,27 @@ export default function DashboardView({
                 />
               </div>
             ) : (
-              <div className="text-gray-500 flex items-center justify-center h-full">
-                Waiting for vehicle data...
+              <div className="text-gray-500 flex flex-col items-center justify-center h-full space-y-2">
+                {!isInitialDataLoaded ? (
+                  <>
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400"></div>
+                    <p>Loading vehicle data...</p>
+                  </>
+                ) : (
+                  <p>Waiting for vehicle detection...</p>
+                )}
               </div>
             )}
           </div>
 
           {/* Vehicle pass-by list */}
           <div className="h-[250px] pt-0 pr-2 overflow-y-auto space-y-2 min-h-0">
-            {vehicles.length === 0 ? (
+            {!isInitialDataLoaded ? (
+              <div className="text-center text-gray-500 py-8">
+                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-gray-400 mx-auto mb-2"></div>
+                Loading vehicles...
+              </div>
+            ) : vehicles.length === 0 ? (
               <div className="text-center text-gray-500 py-8">
                 No vehicles detected yet
               </div>

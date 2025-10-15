@@ -6,13 +6,15 @@ import DashboardView from "@/components/Views/DashboardView";
 import LiveStreamView from "@/components/Views/LiveStreamView";
 import Loader from "@/components/Loader/Loader";
 
+const MAX_VEHICLES = 100;
+
 export default function Home() {
   const [activeView, setActiveView] = useState("dashboard");
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [showLoader, setShowLoader] = useState(true);
-  const [dateTime, setDateTime] = useState(new Date());
+  const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
   const [formattedDate, setFormattedDate] = useState("");
   const [formattedTime, setFormattedTime] = useState("");
 
@@ -45,6 +47,35 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch initial data from API
+  const fetchInitialVehicles = async () => {
+    try {
+      // Add ?limit=500 query parameter
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/vehicles?limit=${MAX_VEHICLES}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch vehicles");
+      }
+
+      const data = await response.json();
+
+      setVehicles(data);
+
+      // Set the first vehicle as selected if available
+      if (data.length > 0) {
+        setSelectedVehicle(data[0]);
+      }
+
+      setIsInitialDataLoaded(true);
+      console.log(`✓ Loaded ${data.length} vehicles from database`);
+    } catch (error) {
+      console.error("Error fetching initial vehicles:", error);
+      setIsInitialDataLoaded(true);
+    }
+  };
+
   // WebSocket Logic
   const INITIAL_RECONNECT_DELAY = 2000;
   const MAX_RECONNECT_DELAY = 4000;
@@ -69,7 +100,18 @@ export default function Home() {
         }
 
         updateTimeoutRef.current = setTimeout(() => {
-          setVehicles((prevVehicles) => [newVehicle, ...prevVehicles]);
+          setVehicles((prevVehicles) => {
+            // Add new vehicle at the start
+            const updatedVehicles = [newVehicle, ...prevVehicles];
+
+            // Keep only the most recent MAX_VEHICLES (remove oldest)
+            if (updatedVehicles.length > MAX_VEHICLES) {
+              return updatedVehicles.slice(0, MAX_VEHICLES);
+            }
+
+            return updatedVehicles;
+          });
+
           setSelectedVehicle(newVehicle);
         }, 500);
       };
@@ -126,8 +168,8 @@ export default function Home() {
   };
 
   useEffect(() => {
+    fetchInitialVehicles();
     connectWebSocket();
-
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -157,6 +199,7 @@ export default function Home() {
             selectedVehicle={selectedVehicle}
             setSelectedVehicle={setSelectedVehicle}
             isConnected={isConnected}
+            isInitialDataLoaded={isInitialDataLoaded}
           />
         );
       case "live":

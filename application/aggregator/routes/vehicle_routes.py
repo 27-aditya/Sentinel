@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter()
 
@@ -10,15 +10,22 @@ def init_db(db_func):
     get_db_connection = db_func
 
 @router.get("/api/vehicles")
-async def get_vehicles():
+async def get_vehicles(limit: int = Query(default=100, ge=1, le=1000)):
+    """
+    Get recent vehicles from the database.
+    
+    Args:
+        limit: Number of vehicles to return (1-1000, default: 100)
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
         SELECT vehicle_id, vehicle_type, keyframe_url, plate_url, color, color_hex, vehicle_number, model, location, timestamp
         FROM vehicles 
         ORDER BY timestamp DESC 
-        LIMIT 100
-    """)
+        LIMIT %s
+    """, (limit,))
+    
     vehicles = [
         {
             "vehicle_id": row[0],
