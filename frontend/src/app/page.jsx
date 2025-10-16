@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Layout/Sidebar";
 import DashboardView from "@/components/Views/DashboardView";
 import LiveStreamView from "@/components/Views/LiveStreamView";
+import SearchView from "@/components/Views/SearchView";
 import Loader from "@/components/Loader/Loader";
 
 const MAX_VEHICLES = 100;
@@ -13,7 +14,7 @@ export default function Home() {
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [showLoader, setShowLoader] = useState(true);
+  const [showLoader, setShowLoader] = useState(true); 
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
   const [formattedDate, setFormattedDate] = useState("");
   const [formattedTime, setFormattedTime] = useState("");
@@ -220,7 +221,7 @@ export default function Home() {
       case "live":
         return <LiveStreamView {...commonProps} />;
       case "search":
-        return <div className="p-8">Search View (Coming Soon)</div>;
+        return <SearchView /> ; 
       default:
         return null;
     }
