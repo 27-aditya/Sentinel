@@ -21,7 +21,7 @@ from db_redis.sentinel_redis_config import *
 from modules.aggregator_engine import ResultAggregator
 
 # Import all route modules
-from routes import websocket_routes, vehicle_routes, stream_routes, file_browser_routes
+from routes import websocket_routes, vehicle_routes, stream_routes, file_browser_routes, filter_routes
 
 # Global ready flag (using dict to allow mutation in routes)
 SYSTEM_READY = {"ready": False}
@@ -168,6 +168,7 @@ templates = Jinja2Templates(directory=str(TEMPLATES_PATH))
 # Initialize route modules with dependencies
 websocket_routes.init_globals(SYSTEM_READY, manager)
 vehicle_routes.init_db(get_db_connection)
+filter_routes.init_db(get_db_connection)
 stream_routes.init_stream(generate_frames, templates, LOCATION, HLS_OUTPUT_DIR)
 file_browser_routes.init_file_browser(STATIC_PATH, templates, LOCATION)
 
@@ -192,6 +193,7 @@ app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 # Include all routers
 app.include_router(websocket_routes.router)
 app.include_router(vehicle_routes.router)
+app.include_router(filter_routes.router)
 app.include_router(stream_routes.router)
 app.include_router(file_browser_routes.router)
 
