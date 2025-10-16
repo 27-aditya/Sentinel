@@ -1,10 +1,14 @@
-import subprocess
+import os
+# Set timezone to IST
+os.environ["TZ"] = "Asia/Kolkata"
 import time
+time.tzset()
+import subprocess
 import signal
 import sys
-import os
 import threading
 import queue
+import requests
 import psutil
 from db_redis.sentinel_redis_config import *
 from dotenv import load_dotenv
@@ -190,12 +194,32 @@ class SentinelOrchestrator:
             "RTSP_STREAM": self.rtsp_stream
         }
         
-        return self.start_process(
+        success = self.start_process(
             "Ingress",
             ["python3", "ingress/ingress.py"],
             "91",
             extra_env=ingress_env
         )
+    
+        if success:
+            # Wait a moment for ingress to fully initialize
+            time.sleep(4)
+            process = self.processes.get("Ingress")
+            if process and process.poll() is not None:
+                print("Ingress failed to start properly (stream error or crash).")
+                return False
+            
+            # Signal the aggregator that system is ready
+            try:
+                response = requests.post("http://localhost:8000/internal/system-ready", timeout=5)
+                if response.status_code == 200:
+                    print("✓ Signaled aggregator: System READY for WebSocket connections")
+                else:
+                    print(f"⚠️ Failed to signal aggregator readiness: {response.status_code}")
+            except Exception as e:
+                print(f"⚠️ Could not signal aggregator readiness: {e}")
+        
+        return success
 
     def monitor_system(self):
         """Monitor system health and show status"""
@@ -214,6 +238,13 @@ class SentinelOrchestrator:
                 
                 if dead:
                     print(f"\nDead processes detected: {', '.join(dead)}")
+
+                    #  If ingress dies, shut everything down
+                    if "Ingress" in dead:
+                        print("Ingress process died — shutting down orchestrator and all workers.")
+                        self.stop_all()
+                        sys.exit(1)
+                    
                     break
                 
                 time.sleep(10)
@@ -232,6 +263,8 @@ class SentinelOrchestrator:
                 
         except KeyboardInterrupt:
             print(f"\n\nShutdown requested...")
+            self.stop_all()
+            sys.exit(0)
     
     def stop_all(self):
         """Stop all processes gracefully and verify termination"""

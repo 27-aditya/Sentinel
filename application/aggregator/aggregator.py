@@ -1,21 +1,30 @@
 import os
+# Set timezone to IST
+os.environ["TZ"] = "Asia/Kolkata"
 import time
+time.tzset()
+import subprocess
 import threading
 import datetime
-from collections import defaultdict
 from pathlib import Path
 import asyncio
-import json
 from typing import List
 
 import psycopg2
 import cv2
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware  
 
 from db_redis.sentinel_redis_config import *
+from modules.aggregator_engine import ResultAggregator
+
+# Import all route modules
+from routes import websocket_routes, vehicle_routes, stream_routes, file_browser_routes
+
+# Global ready flag (using dict to allow mutation in routes)
+SYSTEM_READY = {"ready": False}
 
 # Location
 LOCATION = os.getenv("LOCATION", "DEFAULT_LOCATION")
@@ -66,12 +75,11 @@ class ConnectionManager:
 # A global instance of the manager 
 manager = ConnectionManager()
 
-
 # RTSP viewer
 def generate_frames():
     cap = cv2.VideoCapture(RTSP_URL)
     if not cap.isOpened():
-        print("❌ Could not connect to RTSP stream")
+        print("Could not connect to RTSP stream")
         return
 
     while True:
@@ -86,297 +94,67 @@ def generate_frames():
             b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
         )
 
-# Aggregator Class
-class ResultAggregator:
-    # MODIFIED: __init__ now accepts the manager and the event loop
-    def __init__(self, manager: ConnectionManager, loop: asyncio.AbstractEventLoop):
-        self.pending_jobs = defaultdict(dict)  # job_id -> {worker: result}
-        self.r = get_redis_connection()
-        self.manager = manager
-        self.loop = loop
-
-    def construct_keyframe_url(self, vehicle_id, location):
-        """Construct keyframe URL from vehicle_id and location"""
-        try:
-            # Extract date from vehicle_id: uuid_YYYYMMDD_HHMMSS_type_location
-            parts = vehicle_id.split('_')
-            if len(parts) >= 2:
-                date_part = parts[1]
-                formatted_date = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}"
-                
-                # Construct URL: http://localhost:8000/static/LOCATION/DATE/keyframes/VEHICLE_ID.jpg
-                keyframe_url = f"http://localhost:8000/static/{location}/{formatted_date}/keyframes/{vehicle_id}.jpg"
-                return keyframe_url
-            return None
-        except Exception as e:
-            print(f"Error constructing keyframe URL for {vehicle_id}: {e}")
-            return None
-
-    def construct_plate_url(self, vehicle_id, location):
-        """Construct plate image URL from vehicle_id and location"""
-        try:
-            # Extract date from vehicle_id: uuid_YYYYMMDD_HHMMSS_type_location
-            parts = vehicle_id.split('_')
-            if len(parts) >= 2:
-                date_part = parts[1]
-                formatted_date = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:8]}"
-                
-                # Construct URL: http://localhost:8000/static/LOCATION/DATE/plates/VEHICLE_ID_plate.jpg
-                plate_url = f"http://localhost:8000/static/{location}/{formatted_date}/plates/{vehicle_id}_plate.jpg"
-                return plate_url
-            return None
-        except Exception as e:
-            print(f"Error constructing plate URL for {vehicle_id}: {e}")
-            return None
-
-    def parse_color_result(self, result):
-        """Parse color result format: 'color_name|#hex_code'"""
-        if '|' in result:
-            color_name, hex_code = result.split('|', 1)
-            return color_name.strip(), hex_code.strip()
-        else:
-            return result.strip(), "#000000"
-
-    def extract_location_from_vehicle_id(self, vehicle_id):
-        """Extract location from vehicle_id format: uuid_timestamp_vehicle_type_LOCATION"""
-        try:
-            parts = vehicle_id.split('_')
-            if len(parts) >= 4:
-                location_parts = parts[4:]  # Everything after vehicle type
-                return '_'.join(location_parts)
-            return "UNKNOWN"
-        except:
-            return "UNKNOWN"
-
-    def extract_timestamp_from_vehicle_id(self, vehicle_id):
-        """Extract timestamp from vehicle_id format: uuid_YYYYMMDD_HHMMSS_vehicle_type_LOCATION"""
-        try:
-            parts = vehicle_id.split('_')
-            if len(parts) >= 3:
-                # parts[1] = YYYYMMDD, parts[2] = HHMMSS
-                date_part = parts[1]  # YYYYMMDD
-                time_part = parts[2]  # HHMMSS
-                
-                # Parse into datetime components
-                year = int(date_part[0:4])
-                month = int(date_part[4:6])
-                day = int(date_part[6:8])
-                hour = int(time_part[0:2])
-                minute = int(time_part[2:4])
-                second = int(time_part[4:6])
-                
-                # Create datetime object and convert to ISO format
-                dt = datetime.datetime(year, month, day, hour, minute, second)
-                return dt.isoformat()
-            return None
-        except Exception as e:
-            print(f"Error extracting timestamp from vehicle_id {vehicle_id}: {e}")
-            return None
-
-    def save_to_database(self, job_data):
-        """Save completed job to database"""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            INSERT INTO vehicles (vehicle_id, vehicle_type, keyframe_url, plate_url,
-                                  color, color_hex, vehicle_number, model, location, timestamp, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            job_data.get("vehicle_id"),
-            job_data.get("vehicle_type"),
-            job_data.get("keyframe_url"),
-            job_data.get("plate_url"),
-            job_data.get("color", ""),
-            job_data.get("color_hex", "#000000"),
-            job_data.get("vehicle_number", ""),
-            job_data.get("model", ""),
-            job_data.get("location", "UNKNOWN"),
-            job_data.get("timestamp"), 
-            "completed"
-        ))
-
-        conn.commit()
-        cursor.close()
-        conn.close()
-        # Return the data so it can be broadcast
-        return job_data
+# TEMP RTSP TO HLS CONVERSION - REMOVE
+def start_hls_conversion():
+    """Convert RTSP to HLS using FFmpeg with browser-compatible settings"""
+    output_file = HLS_OUTPUT_DIR / "stream.m3u8"
     
-    def process_results(self):
-        """Main aggregator loop"""
-        print("Aggregator started")
-
-        while True:
-            try:
-                messages = self.r.xreadgroup(
-                    AGGREGATOR_GROUP, "aggregator_1",
-                    {VEHICLE_RESULTS_STREAM: ">"}, 
-                    count=10, block=1000
-                )
-
-                for stream, msgs in messages:
-                    for msg_id, fields in msgs:
-                        job_id = fields.get("job_id")
-                        worker = fields.get("worker")
-                        result = fields.get("result")
-                        vehicle_id = fields.get("vehicle_id")
-
-                        print(f"Received result: {job_id} from {worker} -> {result}")
-
-                        if job_id not in self.pending_jobs:
-                            location = fields.get("location", self.extract_location_from_vehicle_id(vehicle_id))
-                            
-                            # extracting from vehicle_id
-                            timestamp = self.extract_timestamp_from_vehicle_id(vehicle_id)
-                            
-                            keyframe_url = self.construct_keyframe_url(vehicle_id, location)
-                            plate_url = self.construct_plate_url(vehicle_id, location)
-                            self.pending_jobs[job_id] = {
-                                "results": {},
-                                "vehicle_id": vehicle_id,
-                                "location": location,
-                                "timestamp": timestamp,
-                                "keyframe_url": keyframe_url,
-                                "plate_url": plate_url
-                            }
-
-                        self.pending_jobs[job_id]["results"][worker] = result
-                        vehicle_type = job_id.split("_")[0]
-                        expected_workers = get_expected_workers(vehicle_type)
-
-                        received_workers = list(self.pending_jobs[job_id]["results"].keys())
-                        if set(received_workers) >= set(expected_workers):
-                            print(f"All results received for {job_id}: {received_workers}")
-
-                            results = self.pending_jobs[job_id]["results"]
-                            stored_vehicle_id = self.pending_jobs[job_id]["vehicle_id"]
-                            location = self.pending_jobs[job_id]["location"]
-                            timestamp = self.pending_jobs[job_id]["timestamp"]
-                            keyframe_url = self.pending_jobs[job_id]["keyframe_url"]
-                            plate_url = self.pending_jobs[job_id]["plate_url"]
-
-                            color_result = results.get("color", "unknown|#000000")
-                            color_name, color_hex = self.parse_color_result(color_result)
-
-                            job_data = {
-                                "vehicle_id": stored_vehicle_id,
-                                "vehicle_type": vehicle_type,
-                                "keyframe_url": keyframe_url,
-                                "plate_url": plate_url,
-                                "color": color_name,
-                                "color_hex": color_hex,
-                                "vehicle_number": results.get("ocr", ""),
-                                "model": results.get("logo", ""),
-                                "location": location,
-                                "timestamp": timestamp
-                            }
-
-                            saved_data = self.save_to_database(job_data)
-                            print(f"Saved {job_id} to database: vehicle_id: {stored_vehicle_id}")
-
-                            # broadcast the update
-                            # This safely schedules the broadcast on the main event loop.
-                            asyncio.run_coroutine_threadsafe(
-                                self.manager.broadcast(json.dumps(saved_data, default=str)),
-                                self.loop
-                            )
-                            print(f"Scheduled broadcast for {job_id}")
-
-
-                            self.r.xadd(VEHICLE_ACK_STREAM, {
-                                "job_id": job_id,
-                                "status": "completed"
-                            })
-
-                            del self.pending_jobs[job_id]
-
-                        self.r.xack(VEHICLE_RESULTS_STREAM, AGGREGATOR_GROUP, msg_id)
-
-            except Exception as e:
-                print(f"Aggregator error: {e}")
-                time.sleep(1)
-
-# FastAPI Setup
-app = FastAPI(title="Sentinel Vehicle API")
-
-# --- NEW: WebSocket Endpoint ---
-@app.websocket("/ws/updates")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            # Keep connection alive
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
-        print("A client disconnected.")
-
-
-# Database Routes
-@app.get("/api/vehicles")
-async def get_vehicles():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT vehicle_id, vehicle_type, keyframe_url, plate_url, color, color_hex, vehicle_number, model, location, timestamp
-        FROM vehicles 
-        ORDER BY timestamp DESC 
-        LIMIT 100
-    """)
-    vehicles = [
-        {
-            "vehicle_id": row[0],
-            "vehicle_type": row[1],
-            "keyframe_url": row[2],
-            "plate_url": row[3],
-            "color": row[4],
-            "color_hex": row[5],
-            "vehicle_number": row[6],
-            "model": row[7],
-            "location": row[8],
-            "timestamp": row[9],
-        }
-        for row in cursor.fetchall()
+    ffmpeg_cmd = [
+        "ffmpeg",
+        "-rtsp_transport", "tcp",  # Use TCP for more reliable RTSP
+        "-i", RTSP_URL,
+        
+        # Video encoding - Re-encode to H.264 (browser compatible)
+        "-c:v", "libx264",
+        "-preset", "veryfast",  # Fast encoding
+        "-tune", "zerolatency",  # Low latency for live streaming
+        "-profile:v", "baseline",  # Maximum browser compatibility
+        "-level", "3.0",
+        "-g", "30",  # GOP size (keyframe interval)
+        "-sc_threshold", "0",  # Disable scene change detection
+        
+        # Video quality
+        "-b:v", "2000k",  # 2 Mbps bitrate
+        "-maxrate", "2000k",
+        "-bufsize", "4000k",
+        
+        # Audio encoding
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-ar", "44100",  # Sample rate
+        
+        # HLS settings
+        "-f", "hls",
+        "-hls_time", "2",  # 2-second segments
+        "-hls_list_size", "5",  # Keep 5 segments in playlist
+        "-hls_flags", "delete_segments+append_list",  # Delete old segments
+        "-hls_segment_type", "mpegts",  # Use MPEG-TS container
+        "-start_number", "1",
+        
+        # Output
+        str(output_file)
     ]
-    cursor.close()
-    conn.close()
-    return vehicles
-
-
-@app.get("/vehicles/{vehicle_id}")
-async def get_vehicle(vehicle_id: str):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM vehicles WHERE vehicle_id = %s", (vehicle_id,))
-    row = cursor.fetchone()
-
-    if not row:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-
-    cursor.close()
-    conn.close()
-
-    return {
-        "id": row[0],
-        "vehicle_id": row[1],
-        "vehicle_type": row[2],
-        "keyframe_url": row[3],
-        "plate_url": row[4],
-        "color": row[5],
-        "color_hex": row[6],
-        "vehicle_number": row[7],
-        "model": row[8],
-        "location": row[9],
-        "timestamp": row[10],
-        "status": row[11]
-    }
-
+    
+    print(f"Starting HLS conversion: {output_file}")
+    
+    process = subprocess.Popen(
+        ffmpeg_cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True
+    )
+    
+    return process
 
 # File Browser Integration
 BASE_DIR = Path(__file__).resolve().parent
 WEB_ROOT = BASE_DIR / "web"
 STATIC_PATH = WEB_ROOT / "static"
 TEMPLATES_PATH = WEB_ROOT / "templates"
+
+# TEMP HSL STREAM
+HLS_OUTPUT_DIR = STATIC_PATH / "hls_stream"
+HLS_OUTPUT_DIR.mkdir(exist_ok=True)
 
 # Make sure directories exist
 WEB_ROOT.mkdir(exist_ok=True)
@@ -385,96 +163,54 @@ LOCATION_PATH = STATIC_PATH / LOCATION
 LOCATION_PATH.mkdir(parents=True, exist_ok=True)
 TEMPLATES_PATH.mkdir(exist_ok=True)
 
-app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_PATH))
 
+# Initialize route modules with dependencies
+websocket_routes.init_globals(SYSTEM_READY, manager)
+vehicle_routes.init_db(get_db_connection)
+stream_routes.init_stream(generate_frames, templates, LOCATION, HLS_OUTPUT_DIR)
+file_browser_routes.init_file_browser(STATIC_PATH, templates, LOCATION)
 
-@app.get("/", response_class=HTMLResponse)
-async def file_browser(request: Request, subpath: str = ""):
-    """Browse local static files with breadcrumbs."""
-    full_path = STATIC_PATH / subpath
-    if not full_path.exists():
-        raise HTTPException(status_code=404, detail="Path not found")
+# FastAPI Setup
+app = FastAPI(title="Sentinel Vehicle API")
 
-    # Serve file directly
-    if full_path.is_file():
-        return FileResponse(full_path)
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",  
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    # Build folder + file listings
-    items = os.listdir(full_path)
-    folders, files = [], []
+# Mount static files
+app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 
-    for name in sorted(items, key=lambda a: a.lower()):
-        p = full_path / name
-        mtime = datetime.datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-        if p.is_dir():
-            folders.append({
-                "name": name,
-                "href": f"/?subpath={subpath + '/' + name if subpath else name}",
-                "mtime": mtime
-            })
-        else:
-            size = p.stat().st_size
-            size_str = (
-                f"{size} B" if size < 1024
-                else f"{size/1024:.1f} KB" if size < 1024 * 1024
-                else f"{size/(1024*1024):.1f} MB"
-            )
-            files.append({
-                "name": name,
-                "href": f"/static/{subpath + '/' + name if subpath else name}",
-                "size_str": size_str,
-                "mtime": mtime,
-                "is_image": name.lower().endswith((".jpg", ".jpeg", ".png", ".gif", ".webp"))
-            })
+# Include all routers
+app.include_router(websocket_routes.router)
+app.include_router(vehicle_routes.router)
+app.include_router(stream_routes.router)
+app.include_router(file_browser_routes.router)
 
-    # Breadcrumbs
-    parts = subpath.strip("/").split("/") if subpath else []
-    breadcrumbs = [{"name": "Root", "href": "/"}]
-    current = ""
-    for part in parts:
-        current += "/" + part
-        breadcrumbs.append({"name": part, "href": f"/?subpath={current.strip('/')}"})
-
-
-    parent_dir = None
-    if subpath:
-        parent_dir = f"/?subpath={'/'.join(parts[:-1])}" if len(parts) > 1 else "/"
-
-    return templates.TemplateResponse("file_browser.html", {
-        "request": request,
-        "relative_path": subpath or "/",
-        "folders": folders,
-        "files": files,
-        "breadcrumbs": breadcrumbs,
-        "parent_dir": parent_dir,
-        "location": LOCATION,
-        "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
-
-@app.get("/stream_feed")
-async def stream_feed():
-    """MJPEG streaming endpoint for RTSP feed."""
-    return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
-
-@app.get("/stream", response_class=HTMLResponse)
-async def stream_page(request: Request):
-    """Render a live stream viewer page."""
-    return templates.TemplateResponse("stream.html", {"request": request, "location": LOCATION})
-
-# Added this event route to asynchronous loop in the baground to run web socket requests 
+# Startup event
 @app.on_event("startup")
 async def startup_event():
-    # Get the current asyncio event loop
     loop = asyncio.get_running_loop()
     
-    # Instantiate the aggregator, passing it the manager and the loop
-    aggregator = ResultAggregator(manager, loop)
+    # Pass db connection function to aggregator
+    aggregator = ResultAggregator(manager, loop, get_db_connection)
     
-    # Start the process_results function loop in its own thread , does not interfere with the web server 
+    # Start aggregator in background thread
     aggregator_thread = threading.Thread(target=aggregator.process_results, daemon=True)
     aggregator_thread.start()
     
+    # TEMP - REMOVE LATER Start HLS conversion
+    hls_thread = threading.Thread(target=start_hls_conversion, daemon=True)
+    hls_thread.start()
+
     print("Aggregator background thread has been scheduled.")
 
 # Entrypoint 
@@ -482,4 +218,3 @@ if __name__ == "__main__":
     import uvicorn
     print("Starting Sentinel Aggregator Server on http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)
-

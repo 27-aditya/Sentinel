@@ -12,7 +12,7 @@ uvicorn[standard]
 psycopg2-binary
 Jinja2
 webcolors
-
+requests
 
 python-dotenv
 psutil
