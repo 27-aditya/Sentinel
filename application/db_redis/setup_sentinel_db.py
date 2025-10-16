@@ -80,9 +80,32 @@ def create_tables():
             status VARCHAR(20) DEFAULT 'pending'
         );
         """,
+        """
+        CREATE TABLE IF NOT EXISTS processing_jobs (
+            id SERIAL PRIMARY KEY,
+            job_id VARCHAR(100) UNIQUE NOT NULL,
+            vehicle_id VARCHAR(100),
+            worker_type VARCHAR(10) NOT NULL CHECK (worker_type IN ('ocr', 'color', 'logo')),
+            status VARCHAR(20) DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'failed')),
+            result JSONB,
+            started_at TIMESTAMP,
+            completed_at TIMESTAMP,
+            retry_count INTEGER DEFAULT 0
+        );
+        """,
         f"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {DB_USER};",
         f"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {DB_USER};",
+        f"ALTER TABLE vehicles OWNER TO {DB_USER};",
+        f"ALTER TABLE processing_jobs OWNER TO {DB_USER};",
+        f"ALTER TABLE locations OWNER TO {DB_USER};",
+        f"ALTER TABLE vehicle_types OWNER TO {DB_USER};",
+        f"ALTER TABLE colors OWNER TO {DB_USER};",
         "CREATE INDEX IF NOT EXISTS idx_vehicles_vehicle_id ON vehicles(vehicle_id);",
+        "CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);",
+        "CREATE INDEX IF NOT EXISTS idx_vehicles_timestamp ON vehicles(timestamp);",
+        "CREATE INDEX IF NOT EXISTS idx_processing_jobs_job_id ON processing_jobs(job_id);",
+        "CREATE INDEX IF NOT EXISTS idx_processing_jobs_vehicle_id ON processing_jobs(vehicle_id);",
+        "CREATE INDEX IF NOT EXISTS idx_processing_jobs_status ON processing_jobs(status);",
     ]
     
     for sql_cmd in sql_commands:
@@ -120,35 +143,105 @@ def populate_lookup_tables():
 
 
 def test_connection():
-    return True
+    """Test connection using the created user"""
+    print("Testing connection...")
+    
+    try:
+        # Test connection with the new user
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME
+        )
+        cursor = conn.cursor()
+        
+        # Test basic operations
+        cursor.execute("SELECT version();")
+        version = cursor.fetchone()[0]
+        print(f"Connection successful: PostgreSQL {version.split()[1]}")
+        
+        # Test insert/select
+        cursor.execute("""
+            INSERT INTO vehicles (vehicle_id, vehicle_type) 
+            VALUES ('test_001', 'car') 
+            ON CONFLICT (vehicle_id) DO NOTHING;
+        """)
+        
+        cursor.execute("SELECT COUNT(*) FROM vehicles WHERE vehicle_id = 'test_001';")
+        count = cursor.fetchone()[0]
+        
+        # Cleanup
+        cursor.execute("DELETE FROM vehicles WHERE vehicle_id = 'test_001';")
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        print("All tests passed!")
+        return True
+        
+    except Exception as e:
+        print(f"Connection test failed: {e}")
+        return False
 
 def main():
     print("Setting up Sentinel database...")
     print("-" * 40)
     
+    # Check if running with proper privileges
     if os.geteuid() != 0:
-        print("Note: This script uses 'sudo -u postgres'...")
+        print("Note: This script uses 'sudo -u postgres' to create database")
+        print("You may be prompted for your sudo password")
         print()
     
     print("Step 1: Creating database and user...")
-    if not create_database_and_user():
+    try:
+        if not create_database_and_user():
+            print("Failed to create database/user")
+            sys.exit(1)
+    except Exception as e:
+        print(f"Error in step 1: {e}")
         sys.exit(1)
     
     print("\nStep 2: Creating tables...")
-    if not create_tables():
+    try:
+        if not create_tables():
+            print("Failed to create tables")
+            sys.exit(1)
+    except Exception as e:
+        print(f"Error in step 2: {e}")
         sys.exit(1)
         
     print("\nStep 2a: Populating lookup tables...")
-    if not populate_lookup_tables():
+    try:
+        if not populate_lookup_tables():
+            print("Failed to populate lookup tables")
+            sys.exit(1)
+    except Exception as e:
+        print(f"Error in step 2a: {e}")
         sys.exit(1)
 
     print("\nStep 3: Testing connection...")
     if not test_connection():
+        print("Connection test failed")
         sys.exit(1)
     
     print("\n" + "="*50)
     print("Sentinel database setup completed successfully!")
     print("="*50)
+    print(f"Database: {DB_NAME}")
+    print(f"User: {DB_USER}")
+    print(f"Password: {DB_PASSWORD}")
+    print(f"Connection: postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+    print()
+    print("Tables created:")
+    print("  - locations (lookup table)")
+    print("  - vehicle_types (lookup table)")
+    print("  - colors (lookup table)")
+    print("  - vehicles (main results table)")
+    print("  - processing_jobs (worker job tracking)")
 
 if __name__ == "__main__":
     main()
