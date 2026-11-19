@@ -6,6 +6,13 @@ import DashboardView from "@/components/Views/DashboardView";
 import LiveStreamView from "@/components/Views/LiveStreamView";
 import SearchView from "@/components/Views/SearchView";
 import Loader from "@/components/Loader/Loader";
+import {
+  apiFetch,
+  clearAccessToken,
+  getAccessToken,
+  login,
+  websocketUrl,
+} from "@/lib/api";
 
 const MAX_VEHICLES = 100;
 
@@ -19,6 +26,12 @@ export default function Home() {
   const [formattedDate, setFormattedDate] = useState("");
   const [formattedTime, setFormattedTime] = useState("");
   const [autoSelectEnabled, setAutoSelectEnabled] = useState(true); // NEW: Track auto-select state
+  const [accessToken, setAccessToken] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -30,6 +43,32 @@ export default function Home() {
   useEffect(() => {
     autoSelectEnabledRef.current = autoSelectEnabled;
   }, [autoSelectEnabled]);
+
+  useEffect(() => {
+    setAccessToken(getAccessToken());
+    setAuthChecked(true);
+  }, []);
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setIsLoggingIn(true);
+    setAuthError("");
+    try {
+      const token = await login(username, password);
+      setAccessToken(token);
+    } catch (error) {
+      setAuthError(error.message || "Login failed");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = () => {
+    clearAccessToken();
+    setAccessToken(null);
+    setVehicles([]);
+    setSelectedVehicle(null);
+  };
 
   // Date Time Logic
   useEffect(() => {
@@ -58,9 +97,7 @@ export default function Home() {
   // Fetch initial data from API
   const fetchInitialVehicles = async () => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vehicles?limit=${MAX_VEHICLES}`
-      );
+      const response = await apiFetch(`/api/vehicles?limit=${MAX_VEHICLES}`);
 
       if (!response.ok) {
         throw new Error("Failed to fetch vehicles");
@@ -89,7 +126,7 @@ export default function Home() {
 
   const connectWebSocket = () => {
     try {
-      const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL);
+      const ws = new WebSocket(websocketUrl());
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -181,6 +218,8 @@ export default function Home() {
   };
 
   useEffect(() => {
+    if (!accessToken) return;
+    setIsInitialDataLoaded(false);
     fetchInitialVehicles();
     connectWebSocket();
     return () => {
@@ -194,11 +233,57 @@ export default function Home() {
         wsRef.current.close();
       }
     };
-  }, []);
+  }, [accessToken]);
 
   const handleLoaderComplete = () => {
     setShowLoader(false);
   };
+
+  if (!authChecked) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-200">
+        <p className="text-gray-600">Loading Sentinel...</p>
+      </div>
+    );
+  }
+
+  if (!accessToken) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-200">
+        <form
+          onSubmit={handleLogin}
+          className="w-full max-w-sm bg-white rounded-lg shadow p-8 space-y-4"
+        >
+          <h1 className="text-2xl font-semibold text-gray-900">Sentinel Central</h1>
+          <p className="text-sm text-gray-500">Sign in to view live vehicle detections.</p>
+          <input
+            type="text"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            placeholder="Email"
+            autoComplete="username"
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-900"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Password"
+            autoComplete="current-password"
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-900"
+          />
+          {authError && <p className="text-sm text-red-600">{authError}</p>}
+          <button
+            type="submit"
+            disabled={isLoggingIn}
+            className="w-full px-4 py-2 rounded bg-gray-900 text-white hover:bg-gray-800 disabled:bg-gray-400"
+          >
+            {isLoggingIn ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   // Render active view
   const renderView = () => {
@@ -232,6 +317,12 @@ export default function Home() {
       <div className="flex h-screen">
         <Sidebar activeView={activeView} setActiveView={setActiveView} />
         <main className="flex-1 ml-[200px] overflow-auto">{renderView()}</main>
+        <button
+          onClick={handleLogout}
+          className="fixed bottom-4 right-4 z-50 px-3 py-1.5 rounded bg-gray-900 text-white text-sm shadow hover:bg-gray-800"
+        >
+          Log out
+        </button>
       </div>
 
       {showLoader && (

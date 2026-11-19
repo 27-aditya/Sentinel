@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { apiFetch, mediaUrl } from "@/lib/api";
 
-export default function DetailedInfoCard({ vehicle, onVehicleUpdate }) {
+export default function DetailedInfoCard({ vehicle, onVehicleUpdate, onPlateEditStart }) {
   const [editedPlateNumber, setEditedPlateNumber] = useState("");
   const [originalPlateNumber, setOriginalPlateNumber] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
@@ -68,8 +69,8 @@ export default function DetailedInfoCard({ vehicle, onVehicleUpdate }) {
     setSuccessMessage(null);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vehicles/${vehicle.vehicle_id}/plate`,
+      const response = await apiFetch(
+        `/api/vehicles/${vehicle.vehicle_id}/plate`,
         {
           method: "PATCH",
           headers: {
@@ -220,7 +221,7 @@ export default function DetailedInfoCard({ vehicle, onVehicleUpdate }) {
             vehicle.vehicle_number &&
             vehicle.vehicle_number !== "N/A" ? (
               <Image
-                src={vehicle.plate_url}
+                src={mediaUrl(vehicle.plate_url)}
                 alt="License Plate"
                 fill
                 className="rounded object-contain p-2"
@@ -235,10 +236,10 @@ export default function DetailedInfoCard({ vehicle, onVehicleUpdate }) {
             type="text"
             value={editedPlateNumber}
             onChange={(e) => {
-              setEditedPlateNumber(e.target.value.toUpperCase());
+              const newValue = e.target.value.toUpperCase();
+              setEditedPlateNumber(newValue);
               setUpdateError(null);
               setSuccessMessage(null);
-              //  Notify parent that user is editing (only if on latest vehicle)
               if (onPlateEditStart && newValue !== originalPlateNumber) {
                 onPlateEditStart();
               }

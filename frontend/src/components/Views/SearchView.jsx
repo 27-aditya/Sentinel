@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import VehicleCard from "@/components/VehicleCard/VehicleCard";
 import Filter from "@/components/Filter/Filter";
+import { apiFetch, mediaUrl } from "@/lib/api";
 
 export default function SearchView() {
     const [filteredVehicles, setFilteredVehicles] = useState([]);
@@ -27,9 +28,7 @@ export default function SearchView() {
     const fetchFilterOptions = async () => {
         try {
             setIsLoadingFilters(true);
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/filters`
-            );
+            const response = await apiFetch("/api/filters");
 
             if (!response.ok) {
                 throw new Error("Failed to fetch filter options");
@@ -160,9 +159,7 @@ export default function SearchView() {
 
             console.log(`Fetching vehicles - Page ${page} with params:`, params.toString());
 
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/search?${params.toString()}`
-            );
+            const response = await apiFetch(`/api/search?${params.toString()}`);
 
             if (!response.ok) {
                 throw new Error('Failed to fetch filtered vehicles');
@@ -366,7 +363,7 @@ export default function SearchView() {
                     {selectedVehicle?.keyframe_url ? (
                         <div className="relative w-full h-full rounded-lg overflow-hidden flex items-center justify-center bg-black">
                             <Image
-                                src={selectedVehicle.keyframe_url}
+                                src={mediaUrl(selectedVehicle.keyframe_url)}
                                 alt={`Vehicle ${selectedVehicle.vehicle_number}`}
                                 fill
                                 className="object-contain object-center transition-opacity duration-500 ease-in-out"
@@ -447,7 +444,7 @@ export default function SearchView() {
                                         <h4 className="text-sm font-semibold text-gray-700 mb-2">Plate Image:</h4>
                                         <div className="relative h-24 bg-gray-100 rounded border border-gray-200 overflow-hidden">
                                             <Image
-                                                src={selectedVehicle.plate_url}
+                                                src={mediaUrl(selectedVehicle.plate_url)}
                                                 alt="License Plate"
                                                 fill
                                                 className="object-contain p-2"

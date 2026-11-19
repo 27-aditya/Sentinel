@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRef, useEffect } from "react";
 import VehicleCard from "@/components/VehicleCard/VehicleCard";
 import DetailedInfo from "@/components/DetailedInfoCard/DetailedInfoCard";
+import { mediaUrl } from "@/lib/api";
 
 export default function DashboardView({
   vehicles,
@@ -92,7 +93,7 @@ export default function DashboardView({
             {selectedVehicle?.keyframe_url ? (
               <div className="relative w-full h-full rounded-lg overflow-hidden flex items-center justify-center bg-black">
                 <Image
-                  src={selectedVehicle.keyframe_url}
+                  src={mediaUrl(selectedVehicle.keyframe_url)}
                   alt={`Vehicle ${selectedVehicle.vehicle_number}`}
                   fill
                   className="object-contain object-center transition-opacity duration-500 ease-in-out"
