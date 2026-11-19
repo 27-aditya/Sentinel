@@ -9,6 +9,7 @@ import Loader from "@/components/Loader/Loader";
 import {
   apiFetch,
   clearAccessToken,
+  ensureFreshToken,
   getAccessToken,
   login,
   websocketUrl,
@@ -124,7 +125,14 @@ export default function Home() {
   const MAX_RECONNECT_DELAY = 4000;
   const MAX_RECONNECT_ATTEMPTS = Infinity;
 
-  const connectWebSocket = () => {
+  const connectWebSocket = async () => {
+    // Access tokens expire; refresh before opening (or reopening) the socket so
+    // reconnects never reuse a stale token and get rejected with 403.
+    if (!(await ensureFreshToken())) {
+      console.error("Session expired - please sign in again");
+      setAccessToken(null);
+      return;
+    }
     try {
       const ws = new WebSocket(websocketUrl());
       wsRef.current = ws;
