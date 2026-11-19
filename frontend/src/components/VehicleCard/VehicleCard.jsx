@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { AlertTriangle } from "lucide-react";
+import { mediaUrl } from "@/lib/api";
 
 export default function VehicleCard({ vehicle, isSelected, onSelect }) {
   const indianPlateRegex =
@@ -63,7 +64,7 @@ export default function VehicleCard({ vehicle, isSelected, onSelect }) {
           vehicle.vehicle_number &&
           vehicle.vehicle_number !== "N/A" ? (
             <Image
-              src={vehicle.plate_url}
+              src={mediaUrl(vehicle.plate_url)}
               alt="License Plate"
               width={100}
               height={35}
